@@ -1,0 +1,81 @@
+Getting Started with PINTOS
+===========================
+
+Building Project 1
+------------------
+
+pintos  $ cd src/threads
+threads $ make
+
+
+Building Bochs
+--------------
+You should have a patched bochs install available.
+
+See
+
+  http://courses.mpi-sws.org/os-ss11/assignments/pintos/pintos_12.html#SEC160
+
+There is a build script src/misc/bochs-2.3.7-build.sh in the pintos fork from Saarland,
+which (after small modifications) works on a modern Ubuntu x86.
+
+For Ubuntu 11 with a Linux 3.0 kernel, you need to:
+
+  * Regenerate the configure script (autoconf configure.in)
+  * Patch the test for Linux 2.4 or 2.6
+
+After building, copy bochs and bochs-gdb to the pintos/src/utils directory
+
+Running
+-------
+
+  # [pintos/src]
+  PATH=`pwd`/utils:$PATH
+
+  cd threads/build
+  # [pintos/src/threads/build]
+  pintos run alarm-multiple > logfile
+
+
+### Reproducability
+
+This command line flags to pintos influence reproducability.
+Remember: you need the patched bochs build.
+
+  -j seed ... Reproducible behavior
+  -r      ... Real-Time behavior
+
+Running with qemu
+-----------------
+
+  # [pintos/src]
+  vim utils/pintos # comment line with -no-kqemu flag
+
+  cd threads/build
+  # [pintos/src/threads/build]
+  pintos --qemu -- run alarm-multiple
+
+Debugging
+---------
+
+pintos $ vim utils/pintos-gdb
+
+  GDBMACROS=${PINTOS_SRC}/misc/gdb-macros
+
+[pts/0 build] $ pintos --gdb -- run alarm-multiple
+[pts/1 build] $ pintos-gdb kernel.o
+(gdb) debugpintos
+
+Testing
+-------
+
+* Running all tests
+
+  build  $ make check
+
+* Running a single test
+
+  build  $ rm   tests/threads/alarm-multiple.result
+  build  $ make tests/threads/alarm-multiple.result
+
+

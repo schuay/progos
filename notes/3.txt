@@ -1,0 +1,241 @@
+Project 2
+=========
+
+Working with Disks
+------------------
+
+Assumes you ran make in src/userprog and src/examples.
+
+ * Create a 2 MB hard disk for pintos 	
+
+     # [src/userprog/build]
+     pintos-mkdisk filesys.dsk --filesys-size=2
+ 
+ * Format Disk
+  
+     # -f ... format virtual disk
+     pintos -f -q
+
+ * Copy file to filesystem
+
+     # -p FILE ... file to put on virtual disk
+     # -a FILE ... newname on virtual disk
+     pintos -p ../../examples/echo -a echo -- -q
+
+ * Execute echo, and get file 'echo' from the virtual disk
+     
+     pintos -g echo -- -q run 'echo x'
+
+Putting all together, we can run an minimal example like that:
+
+     # [src/userprog/build]
+     pintos --filesys-size=2 -p ../../examples/halt -a halt -- -f -q run 'halt'
+
+Getting Started
+---------------
+
+ * Fix the problem with the .note.gnu.build-id segment
+
+ * Change the stack setup in process.c#setup_stack() to
+   
+     *esp = PHYS_BASE - 12;
+
+ * Change process_wait() to an infinite loop
+
+This should be enough to see 'system call!' when executing
+the 'halt' example.
+
+Next, we need to implement user memory access and the
+the system call dispatcher, as well as the basic
+system calls halt, exit and write.
+
+A simple implementation of user memory access first checks
+whether the address is in user space, and the calls load_page.
+
+For an initial system call dispatcher, we convert the stack pointer
+saved by the processor during the interrupt to kernel space, and
+then dispatch to halt, exit and write. For now, exit just terminates
+the process, and write uses printf, ignoring the fd argument.
+The return value is stored into %eax.
+
+Notes:
+        * halt(): There is no function shutdown() in init.h, only
+          shutdown_poweroff in shutdown.h
+
+        * When accessing data from user space in kernel space, we need to be
+	  sure that the entire address ranged accessed is in user space.
+	  Note that pointers are not necessarily aligned, and thus might
+	  involve two user pages.
+	  Furthermore, buffers need to be copied to kernel space;
+	  otherwise, concurrent user space operations could corrupt the kernel.
+	  Linux allows at most one kernel page for such buffers; we follow
+	  the same route.
+
+        * Debugging: the function hex_dump() is useful; no need to
+          reimplement it.
+
+        * Something went wrong with the write system call, and this
+          is rather tricky to debug.
+          I invoked the system call directly, using inline
+          assembly; this worked fine?
+          Then I tried to debug the user space program; to this
+          end, lookup the code address you are interested in,
+          and use gdb together with objdump for debugging:
+          
+          Debugging 'write(1,"USA\n",4)'
+
+          break *0x0804820e     # break at <write>
+          cont                  # pushl  0xc(%esp)
+          info registers        # esp = 0xbfffffbc
+          x/1w (0xbfffffbc+0xc) # ==> 4 (length)
+          stepi                 # pushl  0x8(%esp)
+          info registers        # esp = 0x......b8
+          x/1w 0xbfffffb8       # ==> 4 (TOS)
+          x/1w (0xbfffffb8+8)   # ==> 1 (wrong) !!!
+          
+          Apparently, the inline assembler in pintos does not use
+          the right constraints.          
+
+Stat:
+  pintos/src/lib/user/syscall.c |    6 +-
+  pintos/src/userprog/process.c |    5 ++-
+  pintos/src/userprog/syscall.c |   92 ++++++++++++++++++++++++++++++++++++++--
+
+  Reading and Implementation Time: 6 hours
+  Debugging Syscalls: 5 hours
+
+
+Argument Passing
+----------------
+First, we tokenize the command using strtok_r, and then setup
+the stack.
+
+Notes:
+       * As noted in the doc, just using strtok_r seems fine.
+         However, as strtok_r modifies the string even if only
+         the first token is needed, some copying is involved
+         if it is used to obtain the filename.
+       * Due to the detailed description in the documentation,
+         setting up the stack is mostly implementation work.
+       * One of the trickier implementation aspects is that we
+         modify the stack in kernel space, but need to convert
+         pointers to user space before pushing them on the stack.
+       * Debugging: Optimizations were really troublesome debugging
+         this task; making setup_stack non-static at least helped
+         to set a suitable breakpoint. In the end, printf was the
+         better debugging aid for this task.
+
+Stat:
+  pintos/src/userprog/process.c |  116 +++++++++++++++++++++++++++++++++--------
+
+  Design and Implementation Time: 4 hours
+
+
+Process Management: exec, wait and exit
+---------------------------------------
+The wait system call requires that all children
+of a process are known, that the exit code of
+a process is stored until collected by the parent,
+and that the parent can block until the child
+process terminates. 
+
+One difficult aspect in the design is that kernel
+threads are not processes, and that child threads
+may exit after their parent. It is important to
+note that threads do not need to wait for their
+children, but that we need to keep the exit status
+until the parent exits.
+
+In the original design, a thread is cleaned up when
+in the scheduler right after it died. In our design
+we delay the cleanup if the parent thread is still alive.
+
+Another issue is that thread_create needs to block
+until the load process of the child thread has finished.
+
+Notes:
+        * I wanted to use the same semaphore for startup and wait.
+          This works, but we need one additional variable (or bit)
+          to distinguish failure at load time from failure at
+          runtime. 
+        * Ugly 1: thread_create only gives back a tid,
+          so it is not possible to directly access the semaphore
+          in process_execute. Therefore we need to iterate over the
+          child list (which is not that bad, because if loading failed,
+          the child needs to be removed from the list anyway).
+        * Ugly 2: We up the semaphore used to synchronize
+          with process_execute and process_wait in thread.c, for
+          all threads.
+	* As also noted by rene, it is important to identifiy memory leaks,
+	  as early as possible. To this end, first add debug messages to
+	  page_alloc/page_free, and then run test programs to identify leaking
+	  pages. Then debug, add conditional breakpoints to stop when a leaking
+	  page is allocated, and inspect the stacktrace to find the culprit.
+
+Stats:
+  pintos/src/threads/thread.c   |   31 +++++++++++++++++---
+  pintos/src/threads/thread.h   |    8 +++++
+  pintos/src/userprog/process.c |   60 ++++++++++++++++++++++++++++++++--------
+  pintos/src/userprog/syscall.c |   19 +++++++++---
+  
+  Design and Implementation Time: 7 hours
+
+File I/O System Calls
+---------------------
+For file I/O we need to implement synchronization (filesys is not thread safe).
+The documentation states that it is not recommended to modify the code in
+the filesys directory for now. A very simple solution is to use one lock for all filesystem operations, including process.c#load. 
+Furthermore, we need to deny writes to a a file currently running as a user
+space process.
+
+Notes:
+	* init_thread() must not aquire locks, and thus not allocate pages.
+	Otherwise, the initialization of the init thread fails.
+	* The {lg,sm}-full tests failed in the initial implementation;
+	apparently, the read/write system calls should always read/write the 
+	full amount of bytes specified to pass this tests. This was not
+	clear from the assignment.
+	* It is not obvious that file_close calls file_allow_write. But an
+	executable should not be writeable during its execution. Therefore,
+	one needs to make sure that it stays write protected after loading
+	has finished. I solve this by keeping the executable open during
+	execution.
+	* The multi-oom test failed again; debugging revealed that I forgot
+	to close all files at process_exit.	
+
+Stats:
+  
+  pintos/src/threads/thread.c   |    1 +
+  pintos/src/threads/thread.h   |    6 +-
+  pintos/src/userprog/process.c |   53 ++++-
+  pintos/src/userprog/process.h |    2 +
+  pintos/src/userprog/syscall.c |  435 +++++++++++++++++++++++++++++++-----
+  pintos/src/userprog/syscall.h |    1 +
+  6 files changed, 381 insertions(+), 117 deletions(-)
+  Design and Implementation Time: 8 hours
+
+Improved User Memory Access
+---------------------------
+Looking at Project 3, it is a much better idea to not check whether a user
+space page is valid, but just let the page fault handler do the job.
+I decided to exit the process in the page fault handler if the address
+is in user space. One needs to take care of temporary memory allocated
+by the syscall handler, to avoid memory leaks. To this end, temporary kernel
+pages allocated in the handler are recorded and either freed at the end
+of the syscall or the end of the process.
+
+Notes:
+	* When using this approach, it is vital to copy user buffers
+	before reading or writing. With virtual memory, a page fault may
+	require to access the file system, and thus may cause race
+	conditions during access to the file system
+
+Stats:
+	 pintos/src/threads/thread.h     |    5 +-
+ 	 pintos/src/userprog/exception.c |   17 ++-
+	 pintos/src/userprog/process.c   |    2 +-
+	 pintos/src/userprog/syscall.c   |  314 +++++++++++++++++++--------------------
+ 	 pintos/src/userprog/syscall.h   |    2 +-
+ 	 5 files changed, 173 insertions(+), 167 deletions(-)
+	
+	Implementation Time: 3 hours

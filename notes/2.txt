@@ -1,0 +1,164 @@
+Projekt 1 - Threads
+===================
+
+alarm clock
+-----------
+The simplest strategy is to maintain a wait list for
+all threads blocked for sleep. 
+
+  * In 'timer_interrupt', check for threads which can be
+    unblocked from sleeping
+  * In 'sleep', set sleep timeout in thread, block the
+    thread and put it on the sleep list
+
+Notes:
+
+  * There are three places where a thread is added to the
+    ready list:
+    - thread_init
+    - thread_yield
+    - thread_unblock
+  * Iterate list with removal:
+    for (e = list_begin (&list); e != list_end (&list); )
+       if(...)
+         e = list_remove(e)->prev;
+         /* Unblock must be called AFTER removing, as thread.elem is reused */
+       else
+         e = list_next(e);
+
+Stats:
+  
+ pintos/src/devices/timer.c  |   40 ++++++++++++++++++++++++++++++++++++++--
+ pintos/src/threads/thread.h |    3 +++
+ 2 files changed, 41 insertions(+), 2 deletions(-)
+
+ Design & Implementation time: 4 hours
+
+Priority Scheduler
+------------------
+
+A simple implementation of the priority scheduler (64 priority levels, round robin within
+one priority group).
+
+  * If a new task arrives with a higher priority, switch to this group
+  * If the currently active group is empty, search for the group with the next highest priority
+
+Notes:
+
+  * thread_{init,unblock,yield} now call thread_ready, which updates the lowest ready priority
+  * The thread_unblock operation does not yield a new thread immediately. Therefore, we need to check
+    later whether we need to switch to a higher priority thread (via thread_yield).
+    As thread_unblock is called with interrupts off, it seemed best to perform
+    this check when interrupts are enabled. This is only necessary if a higher priority task
+    is ready.
+  * First attempt passed alarm-priority, but failed to pass the priority-preempt test.
+    But the debugging facilities are fantastic, so it was easy to spot the problem
+  * Wolfgang suggested to yield a software interrupt when unblocking instead of modifying
+    interrupt_enable.
+
+Stats:
+
+ pintos/src/threads/interrupt.c |    3 +-
+ pintos/src/threads/thread.c    |   60 ++++++++++++++++++++++++++++++++--------
+ pintos/src/threads/thread.h    |    1 +
+ 3 files changed, 51 insertions(+), 13 deletions(-)
+
+ Design and implementation time: 3 hours
+
+Priority Locks
+--------------
+
+We also need to select higher priority task first from locks, semaphores and condition variables.
+This easiest implementation searches for the thread with the highest priority in the wait queue.
+
+Notes:
+
+  * It is sufficient to implement the priority based selection twice, for sema_up and
+    cond_signal. cond_signal is a little bit harder, as we need to store the priority
+    (or the waiting thread) in the semaphore_elem type
+  * There are some handy list utility functions; in this case, list_max does a fine job
+    for both sema_up and cond_signal
+  * It is difficult to implement this in an efficient (sublinear) way, because priority donation
+    may boost a thread at any time!
+
+Stats:
+
+  pintos/src/threads/synch.c |   40 ++++++++++++++++++++++++++++++++++------
+  1 files changed, 34 insertions(+), 6 deletions(-)
+  
+  Design and Implementation time: 1 hour
+
+Priority Donation
+-----------------
+If a thread aquires a lock, the lock holder needs to be boosted to the donated priority.
+We need to deal with nesting and chaining:
+ 
+  * Lock/Thread correspondence: Each lock is associated with at most one thread that holds it.
+    Therefore, donated priority can be associated with a lock.
+  * If a thread t wants to obtain a lock L, and a thread with a lower priority holds it,
+    the thread holding the lock is boosted to the priority of the requesting thread
+  * Chaining: If the boosted thread is also blocked on a lock, than we also need to donate
+    the priority to that lock, in a transitive way.
+  * Nesting: If a thread may hold more than one lock, we need to keep track of the donation
+    to each lock. When a lock is released or the static priority changes, the highest priority
+    donated to other locks is assigned to the thread.
+
+With this information, the following rules seem suitable (without proof of correctness):
+
+  * If thread T tries to aquire lock L
+
+    ==> if(L.owner)
+           T.locked_on   = L
+           donate_priority (L, T.priority)
+        end
+        donate_priority (L ,p) :=
+          L.priority v= p
+          L.holder.priority v= p
+          donate_priority( L.holder.locked_on, p)
+        end
+  
+  * If a thread T aquires a lock L
+
+    ==> L.holder      = T
+        T.locks      += L
+        T.lock_on     = none
+
+
+  * If a thread T releases a lock L
+
+    ==> L.holder = none
+        T.locks -= L
+        T.priority = max (T.locks.priority, static_priority)
+
+To implement this, each thread needs to maintain a list of locks, a static priority,
+and a reference to the lock blocking it.
+      
+Notes:
+
+  * Difficult to design, really a challenge.
+    Literature (short paper) could be helpful.
+    Maybe it would be interesting to ask for correctness proof sketches?
+
+  * First design was wrong, because I assumed locks are aquired in FIFO fashion
+  * First implementation failed to pass donate tests, due to a typo. Debugging
+    facilities are fantastic, no problem to spot this one.
+  * Next try, priority-donate-lower failed. Looking at the source code revealed that
+    we need to recompute the priority at the end of thread_set_priority.
+  * Next try, priority-donate-chain failed. Chaining is tricky to get right;
+    in my implementation, chained donations were lost after one lock was released.
+
+  * It would be an interesting option to ask for new test cases from the students
+  * I think it would also be a cool task to write a test for a RMS scheduling
+    scenario with blocking.
+ 
+Stats:
+
+  pintos/src/threads/synch.c  |   15 ++++++++++++
+  pintos/src/threads/synch.h  |    6 +++-
+  pintos/src/threads/thread.c |   53 +++++++++++++++++++++++++++++++++++++++++-
+  pintos/src/threads/thread.h |    9 ++++++-
+  pintos/src/utils/pintos     |    2 +-
+
+  Design: 5h
+  Implementation: 3h
+

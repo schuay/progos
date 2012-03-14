@@ -1,0 +1,27 @@
+# -*- makefile -*-
+
+tests/intro/userprog-args/%.output: FILESYSSOURCE = --filesys-size=2
+tests/intro/userprog-args/%.output: PUTFILES = $(filter-out kernel.bin loader.bin, $^)
+tests/intro/userprog-args/%.output: SIMULATOR = --qemu
+tests/intro/userprog-args_TESTS = $(addprefix tests/intro/userprog-args/,args-none	\
+args-single args-multiple args-many args-dbl-space args-limit)
+
+tests/intro/userprog-args_PROGS = $(tests/intro/userprog-args_TESTS) $(addprefix \
+tests/intro/userprog-args/,child-simple child-args)
+
+tests/intro/userprog-args/args-none_SRC = tests/intro/userprog-args/args.c
+tests/intro/userprog-args/args-single_SRC = tests/intro/userprog-args/args.c
+tests/intro/userprog-args/args-multiple_SRC = tests/intro/userprog-args/args.c
+tests/intro/userprog-args/args-many_SRC = tests/intro/userprog-args/args.c
+tests/intro/userprog-args/args-dbl-space_SRC = tests/intro/userprog-args/args.c
+tests/intro/userprog-args/args-limit_SRC = tests/intro/userprog-args/args-limit.c
+
+tests/intro/userprog-args/child-simple_SRC = tests/intro/userprog-args/child-simple.c
+tests/intro/userprog-args/child-args_SRC = tests/intro/userprog-args/args.c
+
+$(foreach prog,$(tests/intro/userprog-args_PROGS),$(eval $(prog)_SRC += tests/lib.c))
+
+tests/intro/userprog-args/args-single_ARGS = onearg
+tests/intro/userprog-args/args-multiple_ARGS = some arguments for you!
+tests/intro/userprog-args/args-many_ARGS = a b c d e f g h i j k l m n o p q r s t u v
+tests/intro/userprog-args/args-dbl-space_ARGS = two  spaces!

@@ -1,0 +1,15 @@
+# -*- makefile -*-
+tests/intro/alarm-clock/%.output: SIMULATOR = bochs
+tests/intro/alarm-clock/%.output: PINTOSOPTS += --kernel-test
+tests/intro/alarm-clock/%.output: FILESYSSOURCE = --filesys-size=1
+
+# Test names.
+tests/intro/alarm-clock_TESTS = $(addprefix tests/intro/alarm-clock/,alarm-single \
+alarm-multiple alarm-simultaneous alarm-zero alarm-negative)
+
+# Sources for tests.
+tests/intro/alarm-clock_SRC  = tests/intro/alarm-clock/tests.c
+tests/intro/alarm-clock_SRC += tests/intro/alarm-clock/alarm-wait.c
+tests/intro/alarm-clock_SRC += tests/intro/alarm-clock/alarm-simultaneous.c
+tests/intro/alarm-clock_SRC += tests/intro/alarm-clock/alarm-zero.c
+tests/intro/alarm-clock_SRC += tests/intro/alarm-clock/alarm-negative.c
