@@ -1,8 +1,11 @@
 # Percentage of the testing point total designated for each set of
 # tests.
 
-10.0%	tests/threads/Rubric.alarm
+# Priority Scheduling
 90.0%	tests/threads/Rubric.priority
 
-# Not used in SS2012
-# 40.0%	tests/threads/Rubric.mlfqs
+# Robustness
+10.0%	tests/threads/Rubric.alarm
+
+# Not used in SS 2012
+# XX.0%	tests/threads/Rubric.mlfqs
