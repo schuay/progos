@@ -75,12 +75,14 @@ typedef int tid_t;
    the `magic' member of the running thread's `struct thread' is
    set to THREAD_MAGIC.  Stack overflow will normally change this
    value, triggering the assertion. */
-/* The `elem' member has a dual purpose.  It can be an element in
-   the run queue (thread.c), or it can be an element in a
-   semaphore wait list (synch.c).  It can be used these two ways
-   only because they are mutually exclusive: only a thread in the
-   ready state is on the run queue, whereas only a thread in the
-   blocked state is on a semaphore wait list. */
+/* The `elem' member has a triple purpose.  It can be an element in
+   the run queue (thread.c), it can be an element in a
+   semaphore wait list (synch.c), and it can an element in the
+   sleep list.  It can be used these three ways only because they
+   are mutually exclusive: only a thread in the ready state is on
+   the run queue, whereas only a thread in the blocked state is on
+   a semaphore wait list or the sleep list. A thread can never be
+   simultaneously sleeping or waiting on a semaphore. */
 struct thread
   {
     /* Owned by thread.c. */
@@ -88,10 +90,11 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    int64_t wake_tick;                  /* Wake tick if thread is sleeping. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
+    /* Shared between thread.c, synch.c and timer.c. */
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
