@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Jakob Gruber <jakob.gruber@gmail.com>
+Nico Schaumberger <e1025736@student.tuwien.ac.at>
+Mino Sharkhawy <mino.sharkhawy@student.tuwien.ac.at>
 
 ---- PRELIMINARIES ----
 
@@ -21,6 +21,11 @@ FirstName LastName <email@domain.example>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+Instructions on how to make vim respect the GNU coding style were taken from:
+
+http://stackoverflow.com/questions/456792/vim-apply-settings-on-files-in-directory
+http://yuanjie-huang.blogspot.com/2009/03/vim-in-gnu-coding-style.html
+
 			     ALARM CLOCK
 			     ===========
 
@@ -30,26 +35,105 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+thread.h:
+
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
++   int64_t wake_tick;                  /* Wake tick if thread is sleeping. */
+    int priority;                       /* Priority. */
+    struct list_elem allelem;           /* List element for all threads list. */
+
+    /* Shared between thread.c, synch.c and timer.c. */
+    struct list_elem elem;              /* List element. */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c */
+    struct process* process;           /* Process Structure */
+    struct list children;              /* Threads can hold processes, but not vice versa */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+wake_tick stores the tick when a sleeping thread should wake up.
+
+timer.c:
+
+static struct list sleep_list;
+
+List of processes that are currently sleeping. This list is sorted by thread->wake_tick in ascending order.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+Upon entering timer_sleep(), the wake_tick is set in the current thread's
+struct thread. Interrupts are then disabled to ensure atomicity of the struct's
+insertion into sleep_list. sleep_list stores all currently sleeping threads,
+ordered by their wake_tick. The thread is then blocked.
+
+In every call to timer_interrupt(), the head of sleep_list is examined for
+threads with wake_tick less or equal to the current tick. These threads are
+removed from the list and subsequently unblocked.
+
+Once a thread has woken up and returned from thread_block(), interrupts are
+reenabled and execution continues as normal.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+List iteration time is minimized by sorting sleep_list by wake_tick in
+ascending order. This way, the interrupt handler only needs to check the front
+of the list for eligible threads.
+
+For these threads, the additional work done in timer_interrupt() is kept to a
+minimum: these are then removed from the list and unblocked. Both of the
+previous actions cannot be removed from the interrupt context.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+Critical sections involving shared states are protected by disabling interrupts.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+See answer to A4.
+
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We considered several different designs before settling on this one:
+
+ * Use one semaphore per thread. This way, we could've avoided adding wake_tick
+ to struct thread, and we could've reused existing blocking functionality from
+ semaphores. struct thread would not have to be shared by timer.c in addition
+ to thread.c and synch.c. On the downside, a new struct would have been
+ required in timer.c to keep track of all used semaphores and wake_ticks and
+ the semaphores would raise memory overhead.
+
+ * Similar to the previous design, but without the use of semaphores.
+ The pros and cons are similar, but without code reuse and and memory overhead.
+
+The current design seems to be superior, mainly because it's the simplest and
+fairly efficient. The interrupt handler is kept as short as possible by keeping
+sleep_list sorted. Sorted insertion only adds negligable overhead to
+timer_sleep(). By adding a single field to struct thread, we can avoid an
+entire new struct in timer.c. We can reuse the existing list element in struct
+thread because its three states are mutually exclusive.
 
 			   ARGUMENT PASSING
 			   ================
@@ -60,19 +144,71 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+ struct start_aux_data {
+   char *filename;
++  char **argv;
++  int argc;
+   struct semaphore startup_sem;
+   struct thread *parent_thread;
+   struct process *new_process;
+ };
+
+argv: This is a pointer to an array containing pointers to the actual
+arguments which are to be passed to the new process.
+
+argc: The length of argv.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+The command string passed to process_execute() is first copied into a
+separate page in memory and then split in place using strtok_r().
+Pointers to the arguments are stored behind the copied command string.
+
+If process_execute is called with "grep foo bar" the resulting page
+looks like this:
+
+grep\0foo\0bar\0<ptr to grep><ptr to foo><ptr to bar>NULL
+
+A pointer to the start of the pointers is stored in a start_aux_data
+struct along with their number. This struct is then passed down to
+setup_stack().
+
+A new page for the user process is allocated and the argument strings
+are copied to its end aligned to 4 bytes and in reversed order.
+
+A NULL pointer follows the lowest (argv[0]) string.
+
+The start addresses of the arguments are then translated to those
+used in user space and stored beneath the NULL-pointer with the
+last address (argv[argc-1]) occupying the highest address.
+
+These addresses together with the argument strings make up argv which
+must not take up more space than MAX_ARGV_SIZE (PGSIZE/2). This is
+checked while the strings and addresses are written to the new page.
+
+Beneath argv follow a pointer to it, argc and finally a dummy return
+address (0xFEFEB10C).
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+strtok() is not reentrant. If it would be used in the kernel all calls
+to it would have to be secured by some locking mechanism.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+The shell may have more information about how the arguments should be
+interpreted (quoting, multiple commands, wildcards etc.).
+Additionally handling strings in C is error-prone and sometimes
+dangerous and hence should be avoided in the kernel where there may be
+no recovery from errors.
 
 
 
