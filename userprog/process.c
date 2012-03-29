@@ -22,6 +22,8 @@
 /* data structure to communicate with the thread initializing a new process */
 struct start_aux_data {
   char *filename;
+  char **argv;
+  int argc;
   struct semaphore startup_sem;
   struct thread *parent_thread;
   struct process *new_process;
@@ -32,8 +34,8 @@ struct lock filesys_lock;
 
 /* prototypes */
 static thread_func start_process NO_RETURN;
-static bool load (char *filename, void (**eip) (void), void **esp);
-static bool setup_stack (void **esp);
+static bool load (struct start_aux_data *aux, void (**eip) (void), void **esp);
+static bool setup_stack (struct start_aux_data *aux, void **esp);
 static bool init_fd_table (struct fd_table * table);
 
 /* Initialize the filesystem lock */
@@ -51,38 +53,73 @@ process_current ()
     return thread_current()->process;
 }
 
+/* Splits the command line in BUF into filename and arguments and
+   stores filename, argc and argv in AUX. The argv array is stored
+   at BUF + LEN, where LEN is the length of the string in buf. It
+   is assumed that buf points to an entire page which can be
+   modified at will. */
+static bool
+process_parse_args (char *buf, size_t len, struct start_aux_data *aux)
+{
+  int argc = 0;
+  char **argv_ptr;
+  char *arg, *save_ptr;
+
+  argv_ptr = (char **) (buf + len);
+  aux->argv = argv_ptr;
+  for (arg = strtok_r (buf, " ", &save_ptr); arg != NULL;
+       arg = strtok_r (NULL, " ", &save_ptr), argv_ptr++, argc++)
+    {
+      /* Not enough space for argv on the page. */
+      if (argv_ptr >= (char **) (buf + PGSIZE - sizeof (arg)))
+        {
+          return false;
+	}
+      *argv_ptr = arg;
+    }
+  *argv_ptr = NULL;
+  aux->argc = argc;
+
+  aux->filename = buf;
+
+  return true;
+}
+
 /* Starts a new thread running a user program loaded from
    `filename`.
    The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created.
 
-   In the first assignment, you should change this to function to
-
-     process_execute (const char *cmd)
-
-   and support command strings such as "echo A B C". You
-   will also need to change `load` and `setup_stack`. */
+   CMD is parsed using process_parse_args and the arguments are
+   passed on to the new process. */
 tid_t
-process_execute (const char *filename)
+process_execute (const char *cmd)
 {
+  size_t len;
   tid_t tid = TID_ERROR;
-  char *fn_copy = NULL;
+  char *cmd_copy = NULL;
   struct start_aux_data *aux_data = NULL;
 
   /* Setup the auxiliary data for starting up the new process */
-  fn_copy = palloc_get_page (0);
+  cmd_copy = palloc_get_page (0);
   aux_data = palloc_get_page (0);
-  if (aux_data == NULL || fn_copy == NULL)
+  if (aux_data == NULL || cmd_copy == NULL)
     goto done;
-  strlcpy (fn_copy, filename, PGSIZE);
-  aux_data->filename = fn_copy;
+
+  /* Split cmd into args and store them in aux_data->argv. */
+  len = strlcpy (cmd_copy, cmd, PGSIZE);
+  if (! process_parse_args (cmd_copy, len, aux_data))
+    {
+      goto done;
+    }
+  
   aux_data->parent_thread = thread_current ();
   aux_data->new_process = NULL;
   sema_init (&aux_data->startup_sem, 0);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (fn_copy, PRI_DEFAULT, start_process, aux_data);
+  tid = thread_create (cmd_copy, PRI_DEFAULT, start_process, aux_data);
   if (tid == TID_ERROR)
     goto done;
 
@@ -97,7 +134,7 @@ process_execute (const char *filename)
 		  &aux_data->new_process->parentelem);
 
  done:
-  palloc_free_page (fn_copy);
+  palloc_free_page (cmd_copy);
   palloc_free_page (aux_data);
   return tid;
 }
@@ -131,7 +168,7 @@ start_process (void *aux)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  if (! load (aux_data->filename, &if_.eip, &if_.esp)) {
+  if (! load (aux_data, &if_.eip, &if_.esp)) {
     thread->process = NULL;
   } else {
     aux_data->new_process = thread->process;
@@ -347,13 +384,14 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
     uint32_t read_bytes, uint32_t zero_bytes,
     bool writable);
 
-/* Loads an ELF executable from file_name (the first word of
-   cmd) into the current thread.
+/* Loads an ELF executable from AUX->filename (the first word of
+   cmd) into the current thread. The AUX->argv and argc are stored
+   on the new thread's stack (using setup_stack).
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (char *file_name, void (**eip) (void), void **esp)
+load (struct start_aux_data *aux, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -372,7 +410,7 @@ load (char *file_name, void (**eip) (void), void **esp)
   lock_acquire (&filesys_lock);
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (aux->filename);
   if (file == NULL)
     goto done;
 
@@ -388,7 +426,7 @@ load (char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024)
   {
-    printf ("load: %s: error loading executable\n", file_name);
+    printf ("load: %s: error loading executable\n", aux->filename);
     goto done;
   }
 
@@ -456,7 +494,7 @@ load (char *file_name, void (**eip) (void), void **esp)
   }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (aux, esp))
     goto done;
 
   /* Start address. */
@@ -583,26 +621,120 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
+/* Start address of the stack page of a new thread. */
+#define STACK_PAGE_START	((int) (PHYS_BASE - PGSIZE))
+/* Calculates the page offset of ADDR. */
+#define PAGE_OFFSET(addr)	((int) (addr) & PGMASK)
+/* The maximum size argv may occupy. */
+#define MAX_ARGV_SIZE		(PGSIZE/2)
+/* Magic for the dummy return value of a new process. */
+#define RETURN_MAGIC		0xFEFEB10C
+
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory.
-   You will implement this function in the Project 0.
-   Consider using `hex_dump` for debugging purposes */
+   The new process' argv is stored at the top of the page and
+   alligned for 4 byte access. 
+   Then the stack is setup with argc and argv (which are taken
+   from AUX) as parameters and RETURN_MAGIC as return address.
+   The top of the new stack is stored at *ESP.
+   Returns false if an error occured, true otherwise. */
 static bool
-setup_stack (void **esp)
+setup_stack (struct start_aux_data *aux, void **esp)
 {
+  int i, len;
   uint8_t *kpage = NULL;
+  char **kpage_end;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage == NULL)
-      return false;
+    return false;
 
-  if (! install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true)) {
+  /* The stack needs to be set up as follows:
+
+     PHYS_BASE
+     PHYS_BASE - 1 ...  the strings themselves (including a '\0' for each
+                                    string and padding for byte alignment)
+                        a pointer to each string (argv[X])
+                        a null pointer marking end of args (argv[argc])
+                        argv
+                        argc
+                        the dummy return address.
+
+      Example: sed -i "s/a/b"
+
+      PHYS_BASE - 1  ... 1 byte padding
+                - 8  ... "s/a/b/\0"
+                - 9  ... 1 byte padding
+                - 12 ... "-i\0"
+                - 16 ... "sed\0"
+                - 20 ... argv[2] (points to PHYS_BASE - 8)
+                - 24 ... argv[1] (points to PHYS_BASE - 12)
+                - 28 ... argv[0] (points to PHYS_BASE - 16)
+                - 32 ... argv (points to PHYS_BASE - 28)
+                - 36 ... argc
+                - 40 ... dummy return (MAGIC VALUE)
+
+      esp is set to PHYS_BASE - 40.
+  */
+
+  /* Align and store the actual arg strings in reverse order on the
+     stack. */
+  kpage_end = (char **) (kpage + PGSIZE);
+  for (i = aux->argc - 1; i >= 0; i--)
+    {
+      len = strlen (aux->argv[i]) + 1;
+
+      /* Make sure the address where we store the arg is aligned. */
+      kpage_end -= DIV_ROUND_UP (len, sizeof (int *));
+
+      /* This takes too much space, die. */
+      if (PAGE_OFFSET (kpage_end) < MAX_ARGV_SIZE)
+        {
+          return false;
+        }
+
+      strlcpy ((char *) kpage_end, aux->argv[i], len);
+      /* Calculate the address the arg will have in the new process
+       * and store it in argv[i] (we don't need the old value). */
+      aux->argv[i] = (char *) (STACK_PAGE_START
+		               | PAGE_OFFSET (kpage_end));
+    }
+
+  /* Create space for argv (with argv[argc] = NULL). */
+  kpage_end -= (aux->argc + 1);
+
+  /* This takes too much space, die. */
+  if (PAGE_OFFSET (kpage_end) < MAX_ARGV_SIZE)
+    {
+      return false;
+    }
+
+  /* Store the previously calculated argv addresses on the stack. */
+  for (i = 0; i < aux->argc; i++)
+    {
+      kpage_end[i] = aux->argv[i];
+    }
+  /* By convention the last one is NULL. */
+  kpage_end[aux->argc] = NULL;
+
+  /* 1 for argv, 1 for argc, 1 for the return address. */
+  kpage_end -= 3;
+
+  kpage_end[0] = (char *) RETURN_MAGIC;
+  kpage_end[1] = (char *) aux->argc;
+  /* &argv[0] in the new process' address space. */
+  kpage_end[2] = (char *) ((int) STACK_PAGE_START
+	                   | PAGE_OFFSET (&kpage_end[3]));
+
+  if (! install_page ((uint8_t *) STACK_PAGE_START, kpage, true))
+    {
       palloc_free_page (kpage);
       return false;
-  }
+    }
 
-  /* Currently we assume that 'argc = 0' */
-  *esp = PHYS_BASE - 12;
+  /* Set the stack pointer to point at the dummy return address. */
+  *esp = (void *) (STACK_PAGE_START
+                   | PAGE_OFFSET (kpage_end));
 
   return true;
 }
