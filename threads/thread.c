@@ -488,6 +488,7 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   list_init(&t->children);
 #endif
+  list_init(&t->locks);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -97,6 +97,9 @@ struct thread
     /* Shared between thread.c, synch.c and timer.c. */
     struct list_elem elem;              /* List element. */
 
+    /* Owned by synch.c */
+    struct list locks;                  /* List of held locks. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c */
     struct process* process;           /* Process Structure */
