@@ -383,7 +383,23 @@ static int thread_get_priority_recursive (const struct thread *thread,
   if (recursion_level > PRI_MAX_RECURSION)
     return PRI_MIN;
 
-  return thread->priority;
+  int own_priority = thread->priority;
+  int donated_priority = PRI_MIN;
+
+  /* TODO: There are no const iterator functions. This is an issue,
+   * because this function is called within list_max comparators,
+   * which must be const. */
+  struct list_elem *e;
+  for (e = list_begin (&thread->locks); e != list_end (&thread->locks);
+		  e = list_next (e))
+    {
+      struct lock *f = list_entry (e, struct lock, elem);
+      int lock_priority = lock_donated_priority (f);
+      if (lock_priority > donated_priority)
+        donated_priority = lock_priority;
+    }
+
+  return (own_priority > donated_priority ? own_priority : donated_priority);
 }
 
 /* Sets the current thread's nice value to NICE. */
