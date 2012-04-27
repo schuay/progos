@@ -203,6 +203,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
           break;
       e = list_remove (e);
       thread_unblock (thread);
+      if (thread_get_priority_of (thread) > thread_get_priority ())
+          intr_yield_on_return ();
     }
 
   thread_tick ();
