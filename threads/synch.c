@@ -32,6 +32,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+static struct thread *sema_next_thread (struct semaphore *);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -138,7 +140,7 @@ sema_up (struct semaphore *sema)
 static void sema_test_helper (void *sema_);
 
 /* Returns the thread with the highest priority on the waiters list. */
-struct thread *
+static struct thread *
 sema_next_thread (struct semaphore *sema)
 {
   enum intr_level old_level;
