@@ -68,6 +68,10 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static int thread_get_priority_recursive (const struct thread *,
+                                          uint8_t recursion_level);
+
+#define PRI_MAX_RECURSION (8)
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -365,6 +369,20 @@ thread_get_priority (void)
 int
 thread_get_priority_of (const struct thread *thread)
 {
+  return thread_get_priority_recursive (thread, 0);
+}
+
+/* Returns the thread's actual priority, or the highest priority of
+ * all threads on waiter lists of locks held by this thread, whichever
+ * is higher.
+ * Stops after PRI_MAX_RECURSION levels of recursion.
+ */
+static int thread_get_priority_recursive (const struct thread *thread,
+                                          uint8_t recursion_level)
+{
+  if (recursion_level > PRI_MAX_RECURSION)
+    return PRI_MIN;
+
   return thread->priority;
 }
 
