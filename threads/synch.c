@@ -151,9 +151,9 @@ sema_next_thread (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
     {
-      struct list_elem *elem = list_max (&sema->waiters,
+      struct list_elem *waiter = list_max (&sema->waiters,
                        thread_priority_less, NULL);
-      thread = list_entry (elem, struct thread, elem);
+      thread = list_entry (waiter, struct thread, elem);
     }
   intr_set_level (old_level);
 
