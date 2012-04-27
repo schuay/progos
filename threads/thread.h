@@ -137,6 +137,7 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
+int thread_get_priority_of (const struct thread *);
 void thread_set_priority (int);
 
 int thread_get_nice (void);
