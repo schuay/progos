@@ -499,6 +499,21 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
+/**
+ * Compares threads containing a, b.
+ * Returns true if thread a has a lower priority than b.
+ */
+bool
+thread_priority_less (const struct list_elem *a,
+        const struct list_elem *b,
+        void *aux UNUSED)
+{
+  struct thread *threada = list_entry (a, struct thread, elem);
+  struct thread *threadb = list_entry (b, struct thread, elem);
+
+  return (thread_get_priority_of (threada) < thread_get_priority_of (threadb));
+}
+
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -508,9 +523,13 @@ static struct thread *
 next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
-    return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    {
+      return idle_thread;
+    } else {
+      struct list_elem *elem = list_max (&ready_list, thread_priority_less, NULL);
+      list_remove (elem);
+      return list_entry (elem, struct thread, elem);
+    }
 }
 
 /* Completes a thread switch by activating the new thread's page
