@@ -125,6 +125,28 @@ sema_up (struct semaphore *sema)
 
 static void sema_test_helper (void *sema_);
 
+/* Returns the thread with the highest priority on the waiters list. */
+struct thread *
+sema_next_thread (struct semaphore *sema)
+{
+  enum intr_level old_level;
+  struct thread *thread = NULL;
+
+  ASSERT (sema != NULL);
+
+  old_level = intr_disable ();
+  if (!list_empty (&sema->waiters))
+    {
+      struct list_elem *elem = list_max (&sema->waiters,
+                       thread_priority_less, NULL);
+      thread = list_entry (elem, struct thread, elem);
+    }
+  intr_set_level (old_level);
+
+  return thread;
+}
+
+
 /* Self-test for semaphores that makes control "ping-pong"
    between a pair of threads.  Insert calls to printf() to see
    what's going on. */
