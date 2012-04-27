@@ -109,18 +109,30 @@ void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
+  int new_priority = PRI_MIN;
 
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
     {
-      struct list_elem *elem = list_max (&sema->waiters, thread_priority_less, NULL);
-      list_remove (elem);
-      thread_unblock (list_entry (elem, struct thread, elem));
+      struct thread *thread = sema_next_thread (sema);
+      list_remove (&thread->elem);
+      thread_unblock (thread);
+      new_priority = thread_get_priority_of (thread);
     }
   sema->value++;
   intr_set_level (old_level);
+
+  /* Yield if the thread that just woke up has a higher priority than
+     the current thread. */
+  if (thread_get_priority () < new_priority)
+    {
+      if (intr_context ())
+        intr_yield_on_return ();
+      else
+        thread_yield ();
+    }
 }
 
 static void sema_test_helper (void *sema_);
