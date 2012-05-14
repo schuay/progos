@@ -283,7 +283,7 @@ int lock_donated_priority (struct lock *lock)
 {
   ASSERT (lock != NULL);
 
-  const struct thread *thread = sema_next_thread (&lock->semaphore);
+  struct thread *thread = sema_next_thread (&lock->semaphore);
 
   if (thread == NULL)
     return PRI_MIN;
@@ -307,7 +307,7 @@ struct semaphore_elem
   {
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
-    const struct thread *thread;        /* The waiting thread. */
+    struct thread *thread;        /* The waiting thread. */
   };
 
 /* Initializes condition variable COND.  A condition variable
@@ -326,12 +326,12 @@ cond_init (struct condition *cond)
  * Returns true if thread a has a lower priority than b.
  */
 static bool
-cond_priority_less (const struct list_elem *a,
-        const struct list_elem *b,
+cond_priority_less (struct list_elem *a,
+        struct list_elem *b,
         void *aux UNUSED)
 {
-  const struct semaphore_elem *sa = list_entry (a, struct semaphore_elem, elem);
-  const struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
+  struct semaphore_elem *sa = list_entry (a, struct semaphore_elem, elem);
+  struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
 
   return (thread_get_priority_of (sa->thread) < thread_get_priority_of (sb->thread));
 }

@@ -70,7 +70,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static int thread_get_priority_recursive (const struct thread *,
+static int thread_get_priority_recursive (struct thread *,
                                           uint8_t recursion_level);
 
 #define PRI_MAX_RECURSION (8)
@@ -373,7 +373,7 @@ thread_get_priority (void)
 
 /* Returns the given thread's priority. */
 int
-thread_get_priority_of (const struct thread *thread)
+thread_get_priority_of (struct thread *thread)
 {
   return thread_get_priority_recursive (thread, 0);
 }
@@ -383,7 +383,7 @@ thread_get_priority_of (const struct thread *thread)
  * is higher.
  * Stops after PRI_MAX_RECURSION levels of recursion.
  */
-static int thread_get_priority_recursive (const struct thread *thread,
+static int thread_get_priority_recursive (struct thread *thread,
                                           uint8_t recursion_level)
 {
   if (recursion_level > PRI_MAX_RECURSION)
@@ -392,9 +392,6 @@ static int thread_get_priority_recursive (const struct thread *thread,
   int own_priority = thread->priority;
   int donated_priority = PRI_MIN;
 
-  /* TODO: There are no const iterator functions. This is an issue,
-   * because this function is called within list_max comparators,
-   * which must be const. */
   struct list_elem *e;
   for (e = list_begin (&thread->locks); e != list_end (&thread->locks);
 		  e = list_next (e))
@@ -549,8 +546,8 @@ alloc_frame (struct thread *t, size_t size)
  * Returns true if thread a has a lower priority than b.
  */
 bool
-thread_priority_less (const struct list_elem *a,
-        const struct list_elem *b,
+thread_priority_less (struct list_elem *a,
+        struct list_elem *b,
         void *aux UNUSED)
 {
   struct thread *threada = list_entry (a, struct thread, elem);
