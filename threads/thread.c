@@ -70,8 +70,8 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static int thread_get_priority_recursive (struct thread *,
-                                          uint8_t recursion_level);
+int thread_get_priority_recursive (struct thread *,
+                                   uint8_t recursion_level);
 
 #define PRI_MAX_RECURSION (8)
 
@@ -383,7 +383,7 @@ thread_get_priority_of (struct thread *thread)
  * is higher.
  * Stops after PRI_MAX_RECURSION levels of recursion.
  */
-static int thread_get_priority_recursive (struct thread *thread,
+int thread_get_priority_recursive (struct thread *thread,
                                           uint8_t recursion_level)
 {
   if (recursion_level > PRI_MAX_RECURSION)
@@ -397,7 +397,7 @@ static int thread_get_priority_recursive (struct thread *thread,
 		  e = list_next (e))
     {
       struct lock *f = list_entry (e, struct lock, elem);
-      int lock_priority = lock_donated_priority (f);
+      int lock_priority = lock_donated_priority (f, recursion_level + 1);
       if (lock_priority > donated_priority)
         donated_priority = lock_priority;
     }

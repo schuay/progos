@@ -279,7 +279,8 @@ lock_release (struct lock *lock)
   sema_up (&lock->semaphore);
 }
 
-int lock_donated_priority (struct lock *lock)
+int lock_donated_priority (struct lock *lock,
+                           uint8_t recursion_level)
 {
   ASSERT (lock != NULL);
 
@@ -288,7 +289,7 @@ int lock_donated_priority (struct lock *lock)
   if (thread == NULL)
     return PRI_MIN;
 
-  return thread_get_priority_of (thread);
+  return thread_get_priority_recursive (thread, recursion_level);
 }
 
 /* Returns true if the current thread holds LOCK, false

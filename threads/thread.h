@@ -141,6 +141,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 int thread_get_priority_of (struct thread *);
+int thread_get_priority_recursive (struct thread *, uint8_t);
 void thread_set_priority (int);
 bool thread_priority_less (struct list_elem *,
         struct list_elem *, void *);
