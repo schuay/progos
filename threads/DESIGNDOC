@@ -31,7 +31,36 @@ Mino Sharkhawy <mino.sharkhawy@student.tuwien.ac.at>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TODO
+struct semaphore_elem
+  {
+    struct list_elem elem;              /* List element. */
+    struct semaphore semaphore;         /* This semaphore. */
++   struct thread *thread;        /* The waiting thread. */
+  };
+
+To get the thread with the highest priority waiting for a condition the waiting
+threads are stored in the waiter-list with the semaphores.
+
+struct lock
+  {
+    struct thread *holder;      /* Thread holding lock (for debugging). */
+    struct semaphore semaphore; /* Binary semaphore controlling access. */
++   struct list_elem elem;      /* Each thread keeps a list of held locks. */
+  };
+
+The threads need to keep a list of the locks they hold, so
+thread_get_priority_of(), can determine what priority is donated by the waiting
+threads.
+
+struct thread
+  {
+    ...
++   /* Owned by synch.c */
++   struct list locks;                  /* List of held locks. */
+    ...
+  };
+
+The list of locks held by a thread is stored in the thread struct.
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
@@ -63,7 +92,24 @@ static and donated priorities.
 These data structures are updated whenever lock_acquire(), lock_try_acquire(),
 and lock_release() are called.
 
-TODO: infinite recursion handling.
+real pri: 3              real pri: 3              real pri: 3
+ --------                 --------                 --------
+|Thread A|  waits for X  |Thread B|  waits for Y  |Thread C|
+|pri: 1  | <------------ |pri: 2  | <------------ |pri: 3  |
+|locks: X|               |locks: Y|               |        |
+ --------                 --------                 --------
+
+In the case of nested priority donation (see diagram), in order to determine the
+real priority of thread A, we have to determine the real priority of B, which in
+turn requires us to determine the real priority of C. To do this we could call
+thread_get_priority_of() for each thread, waiting for A and then recursively
+call it for every thread waiting for any of those and so on. This takes time and
+if the threads are in a deadlock it may never return.
+
+This is prevented by using thread_get_priority_recursive() which takes an
+integer argument and increases it for every level of waiting threads. If
+thread_get_priority_recursive() is called with an argument > PRI_MAX_RECURSION
+it returns without calling itself again.
 
 ---- ALGORITHMS ----
 
@@ -78,7 +124,7 @@ above (B2). The first thread with maximum priority is chosen and unblocked.
 
 Lock acquire causes sema_down() to be called on the internal semaphore. No
 changes have been made to sema_down() in this project - if the process can
-enter, the semaphore value is decremented. Otherwise, it i put on the waiters
+enter, the semaphore value is decremented. Otherwise, it is put on the waiters
 list and blocked. The scheduler then chooses the first thread with the highest
 priority to run next.
 
@@ -105,7 +151,14 @@ is called and the unblocked thread is scheduled.
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
-TODO
+In general, if thread_set_priority() does any bookkeeping (i.e. modifying lists,
+changing the thread struct) and is interrupted by for example a thread waking up
+from a timer, the state of the thread system may be corrupted.
+
+This cannot happen in our implementation as we only change thread->priority, and then
+calculate the actual priorities (after donation) on the fly. Thus if the thread
+is interrupted while changing its priority it either has the new, or the old
+priority and the next thread to run is determined by using thread_get_priority_of().
 
 ---- RATIONALE ----
 
@@ -120,7 +173,7 @@ cases like nested donation handle themselves.
 This design has issues when a wait cycle is concerned, since it will enter
 an infinite recursion when trying to calculate thread priority.
 
-TODO: how we solved this.
+This is prevented by limiting the depth of the recursion as described in B2.
 
 Another design we considered was calculating actual thread priority whenever
 something caused it to change (lock_acquire(), lock_release(), thread creation,
