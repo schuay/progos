@@ -70,10 +70,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-int thread_get_priority_recursive (struct thread *,
-                                   uint8_t recursion_level);
-
-#define PRI_MAX_RECURSION (8)
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -217,10 +213,6 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  /* Yield if new thread has higher priority. */
-  if (thread_get_priority_of (t) > thread_get_priority ())
-    thread_yield ();
-
   return tid;
 }
 
@@ -355,54 +347,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  struct thread *thread = thread_current ();
-  int priority = thread->priority;
-  thread->priority = new_priority;
-
-  /* Yield if new priority is lower than old priority. */
-  if (new_priority < priority)
-    thread_yield ();
+  thread_current ()->priority = new_priority;
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void)
 {
-  return thread_get_priority_of (thread_current ());
-}
-
-/* Returns the given thread's priority. */
-int
-thread_get_priority_of (struct thread *thread)
-{
-  return thread_get_priority_recursive (thread, 0);
-}
-
-/* Returns the thread's actual priority, or the highest priority of
- * all threads on waiter lists of locks held by this thread, whichever
- * is higher.
- * Stops after PRI_MAX_RECURSION levels of recursion.
- */
-int thread_get_priority_recursive (struct thread *thread,
-                                          uint8_t recursion_level)
-{
-  if (recursion_level > PRI_MAX_RECURSION)
-    return PRI_MIN;
-
-  int own_priority = thread->priority;
-  int donated_priority = PRI_MIN;
-
-  struct list_elem *e;
-  for (e = list_begin (&thread->locks); e != list_end (&thread->locks);
-		  e = list_next (e))
-    {
-      struct lock *f = list_entry (e, struct lock, elem);
-      int lock_priority = lock_donated_priority (f, recursion_level + 1);
-      if (lock_priority > donated_priority)
-        donated_priority = lock_priority;
-    }
-
-  return (own_priority > donated_priority ? own_priority : donated_priority);
+  return thread_current ()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -525,7 +477,6 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   list_init(&t->children);
 #endif
-  list_init(&t->locks);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -541,21 +492,6 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
-/**
- * Compares threads containing a, b.
- * Returns true if thread a has a lower priority than b.
- */
-bool
-thread_priority_less (struct list_elem *a,
-        struct list_elem *b,
-        void *aux UNUSED)
-{
-  struct thread *threada = list_entry (a, struct thread, elem);
-  struct thread *threadb = list_entry (b, struct thread, elem);
-
-  return (thread_get_priority_of (threada) < thread_get_priority_of (threadb));
-}
-
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -565,13 +501,9 @@ static struct thread *
 next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
-    {
-      return idle_thread;
-    } else {
-      struct list_elem *elem = list_max (&ready_list, thread_priority_less, NULL);
-      list_remove (elem);
-      return list_entry (elem, struct thread, elem);
-    }
+    return idle_thread;
+  else
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page

@@ -97,9 +97,6 @@ struct thread
     /* Shared between thread.c, synch.c and timer.c. */
     struct list_elem elem;              /* List element. */
 
-    /* Owned by synch.c */
-    struct list locks;                  /* List of held locks. */
-
 #ifdef USERPROG
     /* Owned by userprog/process.c */
     struct process* process;           /* Process Structure */
@@ -140,11 +137,7 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
-int thread_get_priority_of (struct thread *);
-int thread_get_priority_recursive (struct thread *, uint8_t);
 void thread_set_priority (int);
-bool thread_priority_less (struct list_elem *,
-        struct list_elem *, void *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

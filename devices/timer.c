@@ -92,8 +92,8 @@ timer_elapsed (int64_t then)
 }
 
 static bool
-wake_tick_less(struct list_elem *a,
-              struct list_elem *b,
+wake_tick_less(const struct list_elem *a,
+              const struct list_elem *b,
               void *aux UNUSED)
 {
   struct thread *threada = list_entry (a, struct thread, elem);
@@ -203,8 +203,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
           break;
       e = list_remove (e);
       thread_unblock (thread);
-      if (thread_get_priority_of (thread) > thread_get_priority ())
-          intr_yield_on_return ();
     }
 
   thread_tick ();
