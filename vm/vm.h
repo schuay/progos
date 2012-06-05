@@ -5,6 +5,12 @@
 #include <stdbool.h>
 
 #include "filesys/off_t.h"
+#include "lib/kernel/hash.h"
+
+typedef struct hash spt_t;
+
+spt_t *spt_create (void);
+void spt_destroy (spt_t *s);
 
 /**
  * An entry of the supplemental page table (SPT).
@@ -17,6 +23,11 @@
  * virtual address as the key.
  */
 struct spte {
+    /**
+     * The user virtual address this page is mapped to.
+     */
+    void *vaddress;
+
     /**
      * The associated file. Note that the SPT is not used to close open files
      * on process termination, so memory-mapped files (which should be reopened
@@ -44,6 +55,11 @@ struct spte {
      * read-only.
      */
     bool writable;
+
+    /**
+     * The hash table element.
+     */
+    struct hash_elem hash_elem;
 };
 
 #endif /* vm/vm.h */
