@@ -14,6 +14,7 @@ typedef struct hash spt_t;
 
 spt_t *spt_create (void);
 void spt_destroy (spt_t *s);
+struct spte *spt_find (spt_t *spt, void *vaddress);
 
 /**
  * Creates a new SPT entry and adds it to the SPT.

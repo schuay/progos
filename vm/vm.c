@@ -50,6 +50,19 @@ spte_destroy (struct hash_elem *e, void *aux UNUSED)
 }
 
 struct spte *
+spt_find (spt_t *spt, void *vaddress)
+{
+  struct spte p;
+  struct hash_elem *e;
+
+  p.vaddress = vaddress;
+  e = hash_find (spt, &p.hash_elem);
+  if (e == NULL)
+    return NULL;
+  return hash_entry (e, struct spte, hash_elem);
+}
+
+struct spte *
 spte_create (struct file *file, off_t ofs, void *upage,
     uint32_t read_bytes, bool writable)
 {

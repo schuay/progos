@@ -160,7 +160,14 @@ page_fault (struct intr_frame *f)
       return;
     } else {
       /* user process access violation */
-      thread_exit();
+      struct thread *t = thread_current ();
+      struct spte *spte = spt_find (t->spt, pg_round_down (fault_addr));
+
+      if (spte == NULL)
+        thread_exit ();
+
+      if (! spte_load (spte))
+        thread_exit ();
     }
   } else {
     printf ("Page fault at %p: %s error %s page in %s context.\n",
