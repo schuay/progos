@@ -4,13 +4,28 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef struct hash spt_t;
+
+#include "filesys/file.h"
 #include "filesys/off_t.h"
 #include "lib/kernel/hash.h"
-
-typedef struct hash spt_t;
+#include "threads/thread.h"
+#include "threads/vaddr.h"
 
 spt_t *spt_create (void);
 void spt_destroy (spt_t *s);
+
+/**
+ * Creates a new SPT entry and adds it to the SPT.
+ * Returns NULL on error.
+ */
+struct spte *spte_create (struct file *file, off_t ofs, void *upage,
+    uint32_t read_bytes, bool writable);
+
+/**
+ * Loads the page described by spte.
+ */
+bool spte_load (const struct spte *spte);
 
 /**
  * An entry of the supplemental page table (SPT).

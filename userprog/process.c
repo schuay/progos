@@ -406,6 +406,9 @@ load (struct start_aux_data *aux, void (**eip) (void), void **esp)
     return false;
   process_activate ();
 
+  /* Allocate supplemental page table. */
+  t->spt = spt_create ();
+
   /* Coarse grained filesystem lock for loading */
   lock_acquire (&filesys_lock);
 
@@ -584,39 +587,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0)
   {
     /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
+       We will read PAGE_READ_BYTES bytes from FILE
+       and zero the final PAGE_ZERO_BYTES bytes. */
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    /* Get a page of memory. */
-    uint8_t *kpage = palloc_get_page (PAL_USER);
-    if (kpage == NULL)
-      return false;
+    /* If the page contains no data from the file, do not associate it
+       with the page. */
+    if (page_zero_bytes == PGSIZE)
+      {
+        file = NULL;
+        ofs = 0;
+      }
 
-    /* Load this page. */
-    if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-    {
-      palloc_free_page (kpage);
-      return false;
-    }
-    memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-    /* Add the page to the process's address space. */
-    if (!install_page (upage, kpage, writable))
-    {
-      palloc_free_page (kpage);
-      return false;
-    }
+    /* Add mapping to supplemental page table. */
+    if (spte_create (file, ofs, upage, page_read_bytes, writable) == NULL)
+      {
+        return false;
+      }
 
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
+    ofs += PGSIZE;
   }
   return true;
 }
@@ -747,7 +744,8 @@ setup_stack (struct start_aux_data *aux, void **esp)
    KPAGE should probably be a page obtained from the user pool
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
-   if memory allocation fails. */
+   if memory allocation fails.
+   TODO: Delete once the move to vm.h is complete. */
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {

@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "vm/vm.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -102,6 +103,9 @@ struct thread
     struct process* process;           /* Process Structure */
     struct list children;              /* Threads can hold processes, but not vice versa */
     uint32_t *pagedir;                  /* Page directory. */
+
+    /* Owned by vm/vm.h */
+    spt_t *spt;                         /* Supplemental page table. */
 #endif
 
     /* Owned by thread.c. */
