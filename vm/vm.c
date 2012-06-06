@@ -160,18 +160,18 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   return true;
 }
 
-bool
+void *
 spt_load (spt_t *spt, void *vaddress)
 {
   /* Retrieve the page table entry. */
   struct spte *spte = spt_find (spt, vaddress);
   if (spte == NULL)
-    return false;
+    return NULL;
 
   /* Get a page of memory. */
   uint8_t *kpage = palloc_get_page (PAL_USER);
   if (kpage == NULL)
-    return false;
+    return NULL;
 
   /* Load this page. */
   if (spte->file != NULL)
@@ -186,7 +186,7 @@ spt_load (spt_t *spt, void *vaddress)
       if (read_bytes != (int) spte->length)
         {
           palloc_free_page (kpage);
-          return false;
+          return NULL;
         }
     }
 
@@ -197,10 +197,10 @@ spt_load (spt_t *spt, void *vaddress)
   if (!install_page (spte->vaddress, kpage, spte->writable))
     {
       palloc_free_page (kpage);
-      return false;
+      return NULL;
     }
 
-  return true;
+  return kpage;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel

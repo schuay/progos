@@ -33,9 +33,9 @@ bool spt_create_entry (struct file *file, off_t ofs, void *upage,
                        uint32_t read_bytes, bool writable, bool writeback);
 
 /**
- * Loads the page mapped to vaddress in spt.
- * Returns false on error.
+ * Loads and returns the page mapped to vaddress in spt.
+ * Returns NULL on error.
  */
-bool spt_load (spt_t *spt, void *vaddress);
+void *spt_load (spt_t *spt, void *vaddress);
 
 #endif /* vm/vm.h */

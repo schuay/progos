@@ -166,7 +166,7 @@ page_fault (struct intr_frame *f)
           /* user process access violation */
           struct thread *t = thread_current ();
 
-          if (! spt_load (t->spt, pg_round_down (fault_addr)))
+          if (spt_load (t->spt, pg_round_down (fault_addr)) == NULL)
             thread_exit ();
         }
     }
