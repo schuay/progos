@@ -109,6 +109,9 @@ kill (struct intr_frame *f)
     }
 }
 
+#define STACK_MAX_SIZE (8 * 1024 * 1024) /**< 8 MiB */
+#define STACK_MAX_OFFSET (32) /** Used by pusha. */
+
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -165,6 +168,16 @@ page_fault (struct intr_frame *f)
         {
           /* user process access violation */
           struct thread *t = thread_current ();
+
+          /* Validate stack access.
+             TODO: find a decent place for this. We need access to the 2
+             user defines and to the stack pointer. The defines are also
+             needed in process.c */
+          if (fault_addr > PHYS_BASE - STACK_MAX_SIZE &&
+              fault_addr < f->esp - STACK_MAX_OFFSET)
+            {
+              thread_exit ();
+            }
 
           if (spt_load (t->spt, pg_round_down (fault_addr)) == NULL)
             thread_exit ();
