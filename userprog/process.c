@@ -658,9 +658,10 @@ setup_stack (struct start_aux_data *aux, void **esp)
   uint8_t *kpage = NULL;
   char **kpage_end;
 
-  /* Map the stack, and load it immediately. */
-  if (!spt_create_entry (NULL, 0, (void *) STACK_PAGE_START, 0, true, false))
-    return false;
+  /* Map the stack, and load the first page immediately. */
+  for (i = 0; i < STACK_MAX_SIZE; i += PGSIZE)
+    if (!spt_create_entry (NULL, 0, (void *) STACK_PAGE_START - i, 0, true, false))
+      return false;
 
   kpage = spt_load (thread_current ()->spt, (void *) STACK_PAGE_START);
   if (kpage == NULL)
