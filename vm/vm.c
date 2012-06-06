@@ -5,6 +5,7 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 
 static unsigned spt_hash (const struct hash_elem *p, void *aux);
 static bool spt_less (const struct hash_elem *a, const struct hash_elem *b,
@@ -92,7 +93,6 @@ spte_load (const struct spte *spte)
 {
   ASSERT (spte != NULL);
 
-
   /* Get a page of memory. */
   uint8_t *kpage = palloc_get_page (PAL_USER);
   if (kpage == NULL)
@@ -101,8 +101,14 @@ spte_load (const struct spte *spte)
   /* Load this page. */
   if (spte->file != NULL)
     {
+      process_lock_filesys ();
+
       file_seek (spte->file, spte->offset);
-      if (file_read (spte->file, kpage, spte->length) != (int) spte->length)
+      int read_bytes = file_read (spte->file, kpage, spte->length);
+
+      process_unlock_filesys ();
+
+      if (read_bytes != (int) spte->length)
         {
           palloc_free_page (kpage);
           return false;
