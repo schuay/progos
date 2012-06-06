@@ -73,6 +73,10 @@ spte_create (struct file *file, off_t ofs, void *upage,
 
   struct thread *t = thread_current();
 
+  /* TODO: This could use some optimization. Ideally, these entries should be
+   * in a contiguous area of memory. Since creation and removal is handled
+   * within this file, that should not be a problem. Also, it would allow us to
+   * remove the malloc dependency. */
   struct spte *spte = malloc (sizeof (struct spte));
   if (spte == NULL)
     return NULL;
