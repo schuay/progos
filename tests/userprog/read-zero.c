@@ -6,12 +6,12 @@
 #include "tests/main.h"
 
 void
-test_main (void) 
+test_main (void)
 {
   int handle, byte_cnt;
   char buf;
 
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
 
   buf = 123;
   byte_cnt = read (handle, &buf, 0);

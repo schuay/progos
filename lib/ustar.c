@@ -8,28 +8,28 @@
    the "pax" utility in [SUSv3] for the the "ustar" format
    specification. */
 struct ustar_header
-  {
-    char name[100];             /* File name.  Null-terminated if room. */
-    char mode[8];               /* Permissions as octal string. */
-    char uid[8];                /* User ID as octal string. */
-    char gid[8];                /* Group ID as octal string. */
-    char size[12];              /* File size in bytes as octal string. */
-    char mtime[12];             /* Modification time in seconds
+{
+  char name[100];             /* File name.  Null-terminated if room. */
+  char mode[8];               /* Permissions as octal string. */
+  char uid[8];                /* User ID as octal string. */
+  char gid[8];                /* Group ID as octal string. */
+  char size[12];              /* File size in bytes as octal string. */
+  char mtime[12];             /* Modification time in seconds
                                    from Jan 1, 1970, as octal string. */
-    char chksum[8];             /* Sum of octets in header as octal string. */
-    char typeflag;              /* An enum ustar_type value. */
-    char linkname[100];         /* Name of link target.
+  char chksum[8];             /* Sum of octets in header as octal string. */
+  char typeflag;              /* An enum ustar_type value. */
+  char linkname[100];         /* Name of link target.
                                    Null-terminated if room. */
-    char magic[6];              /* "ustar\0" */
-    char version[2];            /* "00" */
-    char uname[32];             /* User name, always null-terminated. */
-    char gname[32];             /* Group name, always null-terminated. */
-    char devmajor[8];           /* Device major number as octal string. */
-    char devminor[8];           /* Device minor number as octal string. */
-    char prefix[155];           /* Prefix to file name.
+  char magic[6];              /* "ustar\0" */
+  char version[2];            /* "00" */
+  char uname[32];             /* User name, always null-terminated. */
+  char gname[32];             /* Group name, always null-terminated. */
+  char devmajor[8];           /* Device major number as octal string. */
+  char devminor[8];           /* Device minor number as octal string. */
+  char prefix[155];           /* Prefix to file name.
                                    Null-terminated if room. */
-    char padding[12];           /* Pad to 512 bytes. */
-  }
+  char padding[12];           /* Pad to 512 bytes. */
+}
 PACKED;
 
 /* Returns the checksum for the given ustar format HEADER. */
@@ -97,7 +97,7 @@ ustar_make_header (const char *file_name, enum ustar_type type,
     }
 
   /* Fill in header except for final checksum. */
-  memset (h, 0, sizeof *h);
+  memset (h, 0, sizeof * h);
   strlcpy (h->name, file_name, sizeof h->name);
   snprintf (h->mode, sizeof h->mode, "%07o",
             type == USTAR_REGULAR ? 0644 : 0755);

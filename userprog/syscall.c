@@ -20,9 +20,9 @@
 /* Prototypes for Utilities */
 static int get_user (const uint8_t *uaddr);
 static bool put_user (uint8_t *udst, uint8_t byte);
-static void* memcpy_from_user (void *kaddr, void *uaddr, size_t bytes);
-static void* memcpy_to_user (void *kaddr, void *addr, size_t bytes);
-static void* copy_string_arg  (void *usp, bool *segfault);
+static void *memcpy_from_user (void *kaddr, void *uaddr, size_t bytes);
+static void *memcpy_to_user (void *kaddr, void *addr, size_t bytes);
+static void *copy_string_arg (void *usp, bool *segfault);
 static void free_string_arg_buf (void *kbuf);
 
 /* Reads a byte at user virtual address UADDR.
@@ -56,21 +56,22 @@ put_user (uint8_t *udst, uint8_t byte)
 
 /* Copy bytes from user space; returns NULL if a segfault
    occured, and kaddr otherwise */
-static void*
+static void *
 memcpy_from_user (void *kaddr, void *uaddr, size_t bytes)
 {
-  uint8_t* kp = kaddr;
+  uint8_t *kp = kaddr;
   size_t i;
   if (! is_user_vaddr (uaddr) ||
       ! is_user_vaddr (uaddr + bytes - 1))
     return false;
-  for (i=0;i<bytes;i++) {
-    int b = get_user (uaddr+i);
-    if (b < 0)
-      break; /* segfault */
-    else
-      kp[i] = b;
-  }
+  for (i = 0; i < bytes; i++)
+    {
+      int b = get_user (uaddr + i);
+      if (b < 0)
+        break; /* segfault */
+      else
+        kp[i] = b;
+    }
   if (i != bytes)
     return NULL; /* segfault */
   return kaddr;
@@ -78,18 +79,19 @@ memcpy_from_user (void *kaddr, void *uaddr, size_t bytes)
 
 /* Copy bytes to user space; returns NULL if a segfault
    occured, and uaddr otherwise */
-static void*
+static void *
 memcpy_to_user (void *uaddr, void *kaddr, size_t bytes)
 {
-  uint8_t* kp = kaddr;
+  uint8_t *kp = kaddr;
   size_t i;
   if (! is_user_vaddr (uaddr) ||
       ! is_user_vaddr (uaddr + bytes - 1))
     return false;
-  for (i=0;i<bytes;i++) {
-    if (! put_user (uaddr+i, kp[i]))
-      break; /* segfault */
-  }
+  for (i = 0; i < bytes; i++)
+    {
+      if (! put_user (uaddr + i, kp[i]))
+        break; /* segfault */
+    }
   if (i != bytes)
     return NULL; /* segfault */
   return uaddr;
@@ -99,22 +101,23 @@ memcpy_to_user (void *uaddr, void *kaddr, size_t bytes)
    `kaddr`. The number of bytes copied is returned; 0 indicates a segfault. */
 static size_t
 strncpy_from_user (void *kaddr, void *uaddr, size_t cnt)
-{  
-  uint8_t *kp = (uint8_t*) kaddr;
-  size_t i; 
+{
+  uint8_t *kp = (uint8_t *) kaddr;
+  size_t i;
   int c = 1;
-  for (i = 0; i < cnt && c; i++) {
-    if (! is_user_vaddr (uaddr+i))
-      return 0; /* sefault */
-    c = get_user (uaddr+i);
-    if (c < 0)
-      return 0; /* segfault */
-    kp[i] = c;
-  }
+  for (i = 0; i < cnt && c; i++)
+    {
+      if (! is_user_vaddr (uaddr + i))
+        return 0; /* sefault */
+      c = get_user (uaddr + i);
+      if (c < 0)
+        return 0; /* segfault */
+      kp[i] = c;
+    }
   return i;
 }
 
-/* Copy a value of scalar type `typeof(*kdst)` from user space pointer 
+/* Copy a value of scalar type `typeof(*kdst)` from user space pointer
   `usrc` to kernel space variable pointed to by `kdst`. Returns
   false on segfault, and true otherwise. */
 #define copy_from_user(kdst, usrc) \
@@ -124,29 +127,32 @@ strncpy_from_user (void *kaddr, void *uaddr, size_t cnt)
    in user space. Copies that string (at most PGSIZE bytes)
    to a freshly allocated buffer in kernel space. Reurns NULL on
    error; on a segfault, additionally sets `segfault` to true */
-static void*
+static void *
 copy_string_arg (void *usp, bool *segfault)
 {
   size_t bytes_copied;
   char *uptr;
   char *kpage;
-  if (! copy_from_user (&uptr, usp)) {
-    *segfault = true;
-    return NULL;
-  }
+  if (! copy_from_user (&uptr, usp))
+    {
+      *segfault = true;
+      return NULL;
+    }
   kpage = palloc_get_page (PAL_ZERO);
   if (kpage == NULL)
     return NULL;
   bytes_copied = strncpy_from_user (kpage, uptr, PGSIZE);
-  if (bytes_copied == 0) {
-    *segfault = true;
-    palloc_free_page (kpage);
-    return NULL;
-  }
-  if (kpage[bytes_copied-1] != '\0') {
-    palloc_free_page (kpage);
-    return NULL;
-  };
+  if (bytes_copied == 0)
+    {
+      *segfault = true;
+      palloc_free_page (kpage);
+      return NULL;
+    }
+  if (kpage[bytes_copied - 1] != '\0')
+    {
+      palloc_free_page (kpage);
+      return NULL;
+    };
   return kpage;
 }
 
@@ -162,23 +168,23 @@ static void free_string_arg_buf (void *kbuf)
 /* syscall handler prototype */
 static void syscall_handler (struct intr_frame *);
 
-typedef int (handler)(void *sp, bool *segfault);
+typedef int (handler) (void *sp, bool *segfault);
 
 /* Prototypes for syscall handlers */
 static handler
-  syscall_halt, 
-  syscall_exit,
-  syscall_write,
-  syscall_wait ,
-  syscall_exec,
-  syscall_create,
-  syscall_remove,
-  syscall_open,
-  syscall_filesize,
-  syscall_read,
-  syscall_seek,
-  syscall_tell,
-  syscall_close;
+syscall_halt,
+syscall_exit,
+syscall_write,
+syscall_wait ,
+syscall_exec,
+syscall_create,
+syscall_remove,
+syscall_open,
+syscall_filesize,
+syscall_read,
+syscall_seek,
+syscall_tell,
+syscall_close;
 
 /* Register syscall_handler for interrupt 0x30 */
 void
@@ -192,38 +198,65 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   int syscall_nr;
-  handler* fp;
+  handler *fp;
   bool segfault = false;
   int result;
   void *sp = f->esp;
 
   /* The system call number and the arguments are on the stack */
-  if (! copy_from_user (&syscall_nr,sp))
+  if (! copy_from_user (&syscall_nr, sp))
     goto fail;
-  switch (syscall_nr) {
-  case SYS_HALT: fp = syscall_halt; break;
-  case SYS_EXIT: fp = syscall_exit; break;
-  case SYS_EXEC: fp = syscall_exec; break;
-  case SYS_WAIT: fp = syscall_wait; break;
-  case SYS_CREATE: fp = syscall_create; break;
-  case SYS_REMOVE: fp = syscall_remove; break;
-  case SYS_OPEN: fp = syscall_open; break;
-  case SYS_FILESIZE: fp = syscall_filesize; break;
-  case SYS_READ: fp = syscall_read; break;
-  case SYS_WRITE: fp = syscall_write; break;
-  case SYS_SEEK: fp = syscall_seek; break;
-  case SYS_TELL: fp = syscall_tell; break;
-  case SYS_CLOSE: fp = syscall_close; break;
-  default:
-    goto fail;
-  }
+  switch (syscall_nr)
+    {
+    case SYS_HALT:
+      fp = syscall_halt;
+      break;
+    case SYS_EXIT:
+      fp = syscall_exit;
+      break;
+    case SYS_EXEC:
+      fp = syscall_exec;
+      break;
+    case SYS_WAIT:
+      fp = syscall_wait;
+      break;
+    case SYS_CREATE:
+      fp = syscall_create;
+      break;
+    case SYS_REMOVE:
+      fp = syscall_remove;
+      break;
+    case SYS_OPEN:
+      fp = syscall_open;
+      break;
+    case SYS_FILESIZE:
+      fp = syscall_filesize;
+      break;
+    case SYS_READ:
+      fp = syscall_read;
+      break;
+    case SYS_WRITE:
+      fp = syscall_write;
+      break;
+    case SYS_SEEK:
+      fp = syscall_seek;
+      break;
+    case SYS_TELL:
+      fp = syscall_tell;
+      break;
+    case SYS_CLOSE:
+      fp = syscall_close;
+      break;
+    default:
+      goto fail;
+    }
   result = fp (sp, &segfault);
   if (segfault)
     goto fail;
   f->eax = result;
   return;
 
-  fail:
+fail:
   process_current()->exit_status = -1;
   thread_exit ();
 }
@@ -241,10 +274,11 @@ static int
 syscall_exit (void *sp, bool *segfault)
 {
   int exit_status;
-  if (! copy_from_user (&exit_status, STACK_ADDR (sp,1))) {
-    *segfault = true;
-    return -1;
-  }
+  if (! copy_from_user (&exit_status, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return -1;
+    }
   process_current()->exit_status = exit_status;
   thread_exit ();
   NOT_REACHED ();
@@ -256,10 +290,11 @@ syscall_exec (void *sp, bool *segfault)
 {
   char *kbuf;
   int result = TID_ERROR;
-  if ((kbuf = copy_string_arg (STACK_ADDR (sp, 1), segfault)) != NULL) {
-    result = process_execute (kbuf);
-    free_string_arg_buf (kbuf);
-  }
+  if ( (kbuf = copy_string_arg (STACK_ADDR (sp, 1), segfault)) != NULL)
+    {
+      result = process_execute (kbuf);
+      free_string_arg_buf (kbuf);
+    }
   return result;
 }
 
@@ -268,10 +303,11 @@ static int
 syscall_wait (void *sp, bool *segfault)
 {
   tid_t arg;
-  if (! copy_from_user (&arg, STACK_ADDR (sp,1))) {
-    *segfault = true;
-    return 0;
-  }
+  if (! copy_from_user (&arg, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return 0;
+    }
   return process_wait (arg);
 }
 
@@ -283,11 +319,12 @@ syscall_create (void *sp, bool *segfault)
   char *fname;
   int initial_size;
 
-  if (! copy_from_user (&initial_size, STACK_ADDR (sp,2))) {
-    *segfault = true;
-    return false;
-  }
-  if ((fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
+  if (! copy_from_user (&initial_size, STACK_ADDR (sp, 2)))
+    {
+      *segfault = true;
+      return false;
+    }
+  if ( (fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
     return false;
 
   process_lock_filesys ();
@@ -304,13 +341,13 @@ syscall_remove (void *sp, bool *segfault)
   bool success;
   char *fname;
 
-  if ((fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
-    return false;  
+  if ( (fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
+    return false;
   process_lock_filesys ();
   success = filesys_remove (fname);
   process_unlock_filesys ();
   free_string_arg_buf (fname);
-  return (int)success;
+  return (int) success;
 }
 
 /* Open file, returning non-negative file descriptor if successful */
@@ -319,8 +356,8 @@ syscall_open (void *sp, bool *segfault)
 {
   char *fname;
   int fd;
-  if ((fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
-    return false;  
+  if ( (fname = copy_string_arg (STACK_ADDR (sp, 1), segfault)) == NULL)
+    return false;
   fd = process_open_file (fname);
   free_string_arg_buf (fname);
   return fd;
@@ -334,11 +371,12 @@ syscall_filesize (void *sp, bool *segfault)
   struct file *f;
   int size;
 
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1))) {
-    *segfault = true;
-    return -1;
-  }
-  if ((f = process_get_file (fd)) == NULL)
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return -1;
+    }
+  if ( (f = process_get_file (fd)) == NULL)
     return -1;
   process_lock_filesys ();
   size = inode_length (file_get_inode (f));
@@ -357,33 +395,38 @@ syscall_read (void *sp, bool *segfault)
   size_t size, bytes_to_read;
 
   /* get arguments */
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1)) ||
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)) ||
       ! copy_from_user (&user_buffer, STACK_ADDR (sp, 2)) ||
-      ! copy_from_user (&size, STACK_ADDR (sp,3))) {
-    *segfault = true;
-    return -1;
-  }
+      ! copy_from_user (&size, STACK_ADDR (sp, 3)))
+    {
+      *segfault = true;
+      return -1;
+    }
 
   /* ensure buffer is in user space */
   if (! is_user_vaddr (user_buffer) ||
-      ! is_user_vaddr (user_buffer + size - 1)) {
-    *segfault = true;
-    return -1;
-  }
+      ! is_user_vaddr (user_buffer + size - 1))
+    {
+      *segfault = true;
+      return -1;
+    }
 
   bytes_to_read = size;
   /* handle stdin */
-  if (fd == STDIN_FILENO) {
-    char c;
-    while (bytes_to_read--) {
-      c = input_getc ();
-      if (! put_user (user_buffer++, c)) {
-        *segfault = true;
-        return -1;
-      }
+  if (fd == STDIN_FILENO)
+    {
+      char c;
+      while (bytes_to_read--)
+        {
+          c = input_getc ();
+          if (! put_user (user_buffer++, c))
+            {
+              *segfault = true;
+              return -1;
+            }
+        }
+      return size;
     }
-    return size;
-  }
   /* get file */
   struct file *file = process_get_file (fd);
   if (file == NULL)
@@ -394,27 +437,30 @@ syscall_read (void *sp, bool *segfault)
     return -1;
 
   /* read loop */
-  do {
-    int bytes_read;
-    int blocksize = bytes_to_read;
-    if (bytes_to_read > PGSIZE)
-      blocksize = PGSIZE;
+  do
+    {
+      int bytes_read;
+      int blocksize = bytes_to_read;
+      if (bytes_to_read > PGSIZE)
+        blocksize = PGSIZE;
 
-    /* read bytes */
-    process_lock_filesys ();
-    bytes_read = file_read (file, kbuf, blocksize);
-    process_unlock_filesys ();
+      /* read bytes */
+      process_lock_filesys ();
+      bytes_read = file_read (file, kbuf, blocksize);
+      process_unlock_filesys ();
 
-    /* Stop when EOF has been reached */
-    if (bytes_read == 0)
-      break;
-    bytes_to_read -= bytes_read;
-    if (! memcpy_to_user (user_buffer, kbuf, bytes_read)) {
-      *segfault = true;
-      break;
+      /* Stop when EOF has been reached */
+      if (bytes_read == 0)
+        break;
+      bytes_to_read -= bytes_read;
+      if (! memcpy_to_user (user_buffer, kbuf, bytes_read))
+        {
+          *segfault = true;
+          break;
+        }
+      user_buffer += bytes_read;
     }
-    user_buffer += bytes_read;
-  } while (bytes_to_read > 0);
+  while (bytes_to_read > 0);
 
   palloc_free_page (kbuf);
   return size - bytes_to_read;
@@ -430,27 +476,30 @@ syscall_write (void *sp, bool *segfault)
   char *user_buffer;
 
   /* get arguments */
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1)) ||
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)) ||
       ! copy_from_user (&user_buffer, STACK_ADDR (sp, 2)) ||
-      ! copy_from_user (&size, STACK_ADDR (sp,3))) {
-    *segfault = true;
-    return -1;
-  }
+      ! copy_from_user (&size, STACK_ADDR (sp, 3)))
+    {
+      *segfault = true;
+      return -1;
+    }
 
   /* ensure buffer is in user space */
   if (! is_user_vaddr (user_buffer) ||
-      ! is_user_vaddr (user_buffer + size - 1)) {
-    *segfault = true;
-    return -1;
-  }
+      ! is_user_vaddr (user_buffer + size - 1))
+    {
+      *segfault = true;
+      return -1;
+    }
 
   /* get file handle */
   struct file *file = NULL;
-  if (fd != STDOUT_FILENO) {
-    file = process_get_file (fd);
-    if (file == NULL)
-      return -1;
-  }
+  if (fd != STDOUT_FILENO)
+    {
+      file = process_get_file (fd);
+      if (file == NULL)
+        return -1;
+    }
 
   /* allocate kernel buffer */
   char *kbuf = palloc_get_page (0);
@@ -459,37 +508,45 @@ syscall_write (void *sp, bool *segfault)
 
   /* write loop */
   bytes_to_write = size;
-  do {
-    int blocksize = bytes_to_write;
-    if (bytes_to_write > PGSIZE)
-      blocksize = PGSIZE;
-    if (memcpy_from_user (kbuf, user_buffer, blocksize) == NULL) {
-      *segfault = true;
-      break;
-    }
-    if (fd == STDOUT_FILENO) {
-      putbuf (kbuf, blocksize);
-      bytes_to_write -= blocksize;
-    } else {
-      int bytes_written = 0;
-      int bytes_left_filesys = blocksize;
-
-      process_lock_filesys ();
-      while (bytes_left_filesys > 0) {
-        bytes_written = file_write (file, kbuf, bytes_left_filesys);
-        if (bytes_written <= 0) {
+  do
+    {
+      int blocksize = bytes_to_write;
+      if (bytes_to_write > PGSIZE)
+        blocksize = PGSIZE;
+      if (memcpy_from_user (kbuf, user_buffer, blocksize) == NULL)
+        {
+          *segfault = true;
           break;
         }
-        bytes_left_filesys -= bytes_written;
-      }
-      process_unlock_filesys ();
+      if (fd == STDOUT_FILENO)
+        {
+          putbuf (kbuf, blocksize);
+          bytes_to_write -= blocksize;
+        }
+      else
+        {
+          int bytes_written = 0;
+          int bytes_left_filesys = blocksize;
 
-      if (bytes_written <= 0)
-        break;
-      bytes_to_write -= blocksize;
+          process_lock_filesys ();
+          while (bytes_left_filesys > 0)
+            {
+              bytes_written = file_write (file, kbuf, bytes_left_filesys);
+              if (bytes_written <= 0)
+                {
+                  break;
+                }
+              bytes_left_filesys -= bytes_written;
+            }
+          process_unlock_filesys ();
+
+          if (bytes_written <= 0)
+            break;
+          bytes_to_write -= blocksize;
+        }
+      user_buffer += blocksize;
     }
-    user_buffer += blocksize;
-  } while (bytes_to_write > 0);
+  while (bytes_to_write > 0);
 
   /* return bytes written */
   palloc_free_page (kbuf);
@@ -504,11 +561,12 @@ syscall_seek (void *sp, bool *segfault)
   off_t new_pos;
 
   /* get arguments */
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1)) ||
-      ! copy_from_user (&new_pos, STACK_ADDR (sp, 2))) {
-    *segfault = true;
-    return 0;
-  }
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)) ||
+      ! copy_from_user (&new_pos, STACK_ADDR (sp, 2)))
+    {
+      *segfault = true;
+      return 0;
+    }
 
   /* no way to return something sensible (void function) */
   struct file *file = process_get_file (fd);
@@ -529,10 +587,11 @@ syscall_tell (void *sp, bool *segfault)
   unsigned r = 0;
 
   /* get arguments */
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1))) {
-    *segfault = true;
-    return 0;
-  }
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return 0;
+    }
 
   /* no way to return something sensible function */
   struct file *file = process_get_file (fd);
@@ -552,10 +611,11 @@ syscall_close (void *sp, bool *segfault)
   int fd;
 
   /* get arguments */
-  if (! copy_from_user (&fd, STACK_ADDR (sp,1))) {
-    *segfault = true;
-    return 0;
-  }
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return 0;
+    }
 
   /* no way to return something sensible function (void) */
   (void) process_close_file (fd);

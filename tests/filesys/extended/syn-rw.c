@@ -12,14 +12,14 @@ char buf[BUF_SIZE];
 #define CHILD_CNT 4
 
 void
-test_main (void) 
+test_main (void)
 {
   pid_t children[CHILD_CNT];
   size_t ofs;
   int fd;
 
   CHECK (create (file_name, 0), "create \"%s\"", file_name);
-  CHECK ((fd = open (file_name)) > 1, "open \"%s\"", file_name);
+  CHECK ( (fd = open (file_name)) > 1, "open \"%s\"", file_name);
 
   exec_children ("child-syn-rw", children, CHILD_CNT);
 

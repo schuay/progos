@@ -17,14 +17,14 @@ main (int argc, char *argv[])
   int fd;
 
   quiet = true;
-  
+
   CHECK (argc == 2, "argc must be 2, actually %d", argc);
   child_idx = atoi (argv[1]);
 
   random_init (0);
   random_bytes (buf, sizeof buf);
 
-  CHECK ((fd = open (file_name)) > 1, "open \"%s\"", file_name);
+  CHECK ( (fd = open (file_name)) > 1, "open \"%s\"", file_name);
   seek (fd, CHUNK_SIZE * child_idx);
   CHECK (write (fd, buf + CHUNK_SIZE * child_idx, CHUNK_SIZE) > 0,
          "write \"%s\"", file_name);

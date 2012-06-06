@@ -27,26 +27,30 @@ test_main (void)
   char buf[1024];
   /* create file */
   CHECK (create ("sample.txt", FILE_SIZE), "create \"sample.txt\"");
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
   /* mmap */
-  for (i = 0; i < N; i++) {
-    CHECK ((map[i] = mmap (handle, ACTUAL(i))) != MAP_FAILED, "mmap \"sample.txt\"");
-  }
+  for (i = 0; i < N; i++)
+    {
+      CHECK ( (map[i] = mmap (handle, ACTUAL (i))) != MAP_FAILED, "mmap \"sample.txt\"");
+    }
   /* write */
-  for (i = 0; i < N; i++) {
-      memcpy (buf, ACTUAL(i)+OFFSET(i+N), 1024); /* not checked */
-      memcpy (ACTUAL(i)+OFFSET(i), sample, strlen (sample));
-  }
+  for (i = 0; i < N; i++)
+    {
+      memcpy (buf, ACTUAL (i) + OFFSET (i + N), 1024); /* not checked */
+      memcpy (ACTUAL (i) + OFFSET (i), sample, strlen (sample));
+    }
   /* munmap */
-  for (i = 0; i < N; i++) {
+  for (i = 0; i < N; i++)
+    {
       munmap (map[i]);
-  }
+    }
   /* Read back via read(). */
-  for (i = 0; i < N; i++) {
-      seek (handle, OFFSET(i));
+  for (i = 0; i < N; i++)
+    {
+      seek (handle, OFFSET (i));
       read (handle, buf, strlen (sample));
       CHECK (!memcmp (buf, sample, strlen (sample)),
              "compare read data against written data");
-  }
+    }
   close (handle);
 }

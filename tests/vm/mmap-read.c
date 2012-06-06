@@ -14,8 +14,8 @@ test_main (void)
   mapid_t map;
   size_t i;
 
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
-  CHECK ((map = mmap (handle, actual)) != MAP_FAILED, "mmap \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (map = mmap (handle, actual)) != MAP_FAILED, "mmap \"sample.txt\"");
 
   /* Check that data is correct. */
   if (memcmp (actual, sample, strlen (sample)))

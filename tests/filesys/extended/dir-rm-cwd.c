@@ -7,12 +7,12 @@
 #include "tests/main.h"
 
 static int
-wrap_open (const char *name) 
+wrap_open (const char *name)
 {
   static int fds[8], fd_cnt;
   int fd, i;
 
-  CHECK ((fd = open (name)) > 1, "open \"%s\"", name);
+  CHECK ( (fd = open (name)) > 1, "open \"%s\"", name);
   for (i = 0; i < fd_cnt; i++)
     if (fds[i] == fd)
       fail ("fd returned is not unique");
@@ -21,7 +21,7 @@ wrap_open (const char *name)
 }
 
 void
-test_main (void) 
+test_main (void)
 {
   int root_fd, a_fd0;
   char name[READDIR_MAX_LEN + 1];

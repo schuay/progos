@@ -9,12 +9,12 @@
 
 /* States in a thread's life cycle. */
 enum thread_status
-  {
-    THREAD_RUNNING,     /* Running thread. */
-    THREAD_READY,       /* Not running but ready to run. */
-    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-    THREAD_DYING        /* About to be destroyed. */
-  };
+{
+  THREAD_RUNNING,     /* Running thread. */
+  THREAD_READY,       /* Not running but ready to run. */
+  THREAD_BLOCKED,     /* Waiting for an event to trigger. */
+  THREAD_DYING        /* About to be destroyed. */
+};
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
@@ -85,32 +85,32 @@ typedef int tid_t;
    a semaphore wait list or the sleep list. A thread can never be
    simultaneously sleeping or waiting on a semaphore. */
 struct thread
-  {
-    /* Owned by thread.c. */
-    tid_t tid;                          /* Thread identifier. */
-    enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
-    int64_t wake_tick;                  /* Wake tick if thread is sleeping. */
-    int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+{
+  /* Owned by thread.c. */
+  tid_t tid;                          /* Thread identifier. */
+  enum thread_status status;          /* Thread state. */
+  char name[16];                      /* Name (for debugging purposes). */
+  uint8_t *stack;                     /* Saved stack pointer. */
+  int64_t wake_tick;                  /* Wake tick if thread is sleeping. */
+  int priority;                       /* Priority. */
+  struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c, synch.c and timer.c. */
-    struct list_elem elem;              /* List element. */
+  /* Shared between thread.c, synch.c and timer.c. */
+  struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
-    /* Owned by userprog/process.c */
-    struct process* process;           /* Process Structure */
-    struct list children;              /* Threads can hold processes, but not vice versa */
-    uint32_t *pagedir;                  /* Page directory. */
+  /* Owned by userprog/process.c */
+  struct process *process;           /* Process Structure */
+  struct list children;              /* Threads can hold processes, but not vice versa */
+  uint32_t *pagedir;                  /* Page directory. */
 
-    /* Owned by vm/vm.h */
-    spt_t *spt;                         /* Supplemental page table. */
+  /* Owned by vm/vm.h */
+  spt_t *spt;                         /* Supplemental page table. */
 #endif
 
-    /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
-  };
+  /* Owned by thread.c. */
+  unsigned magic;                     /* Detects stack overflow. */
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

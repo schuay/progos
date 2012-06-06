@@ -21,7 +21,7 @@ size_t histogram[256];
 /* Initialize buf1 with random data,
    then count the number of instances of each value within it. */
 static void
-init (void) 
+init (void)
 {
   struct arc4 arc4;
   size_t i;
@@ -41,7 +41,7 @@ sort_chunks (void)
   size_t i;
 
   create ("buffer", CHUNK_SIZE);
-  for (i = 0; i < CHUNK_CNT; i++) 
+  for (i = 0; i < CHUNK_CNT; i++)
     {
       pid_t child;
       int handle;
@@ -50,17 +50,17 @@ sort_chunks (void)
 
       /* Write this chunk to a file. */
       quiet = true;
-      CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");
+      CHECK ( (handle = open ("buffer")) > 1, "open \"buffer\"");
       write (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
 
       /* Sort with subprocess. */
-      CHECK ((child = exec ("child-sort buffer")) != -1,
-             "exec \"child-sort buffer\"");
+      CHECK ( (child = exec ("child-sort buffer")) != -1,
+              "exec \"child-sort buffer\"");
       CHECK (wait (child) == 123, "wait for child-sort");
 
       /* Read chunk back from file. */
-      CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");
+      CHECK ( (handle = open ("buffer")) > 1, "open \"buffer\"");
       read (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
 
@@ -70,7 +70,7 @@ sort_chunks (void)
 
 /* Merge the sorted chunks in buf1 into a fully sorted buf2. */
 static void
-merge (void) 
+merge (void)
 {
   unsigned char *mp[CHUNK_CNT];
   size_t mp_left;
@@ -86,7 +86,7 @@ merge (void)
 
   /* Merge. */
   op = buf2;
-  while (mp_left > 0) 
+  while (mp_left > 0)
     {
       /* Find smallest value. */
       size_t min = 0;
@@ -98,14 +98,14 @@ merge (void)
       *op++ = *mp[min];
 
       /* Advance merge pointer.
-         Delete this chunk from the set if it's emptied. */ 
-      if ((++mp[min] - buf1) % CHUNK_SIZE == 0)
-        mp[min] = mp[--mp_left]; 
+         Delete this chunk from the set if it's emptied. */
+      if ( (++mp[min] - buf1) % CHUNK_SIZE == 0)
+        mp[min] = mp[--mp_left];
     }
 }
 
 static void
-verify (void) 
+verify (void)
 {
   size_t buf_idx;
   size_t hist_idx;
@@ -113,15 +113,15 @@ verify (void)
   msg ("verify");
 
   buf_idx = 0;
-  for (hist_idx = 0; hist_idx < sizeof histogram / sizeof *histogram;
+  for (hist_idx = 0; hist_idx < sizeof histogram / sizeof * histogram;
        hist_idx++)
     {
-      while (histogram[hist_idx]-- > 0) 
+      while (histogram[hist_idx]-- > 0)
         {
           if (buf2[buf_idx] != hist_idx)
             fail ("bad value %d in byte %zu", buf2[buf_idx], buf_idx);
           buf_idx++;
-        } 
+        }
     }
 
   msg ("success, buf_idx=%'zu", buf_idx);

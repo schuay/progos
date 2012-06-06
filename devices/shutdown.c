@@ -58,8 +58,8 @@ shutdown_reboot (void)
 {
   printf ("Rebooting...\n");
 
-    /* See [kbd] for details on how to program the keyboard
-     * controller. */
+  /* See [kbd] for details on how to program the keyboard
+   * controller. */
   for (;;)
     {
       int i;
@@ -68,7 +68,7 @@ shutdown_reboot (void)
        * 'input buffer empty' is reported. */
       for (i = 0; i < 0x10000; i++)
         {
-          if ((inb (CONTROL_REG) & 0x02) == 0)
+          if ( (inb (CONTROL_REG) & 0x02) == 0)
             break;
           timer_udelay (2);
         }

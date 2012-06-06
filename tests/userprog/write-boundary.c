@@ -9,7 +9,7 @@
 #include "tests/main.h"
 
 void
-test_main (void) 
+test_main (void)
 {
   int handle;
   int byte_cnt;
@@ -17,7 +17,7 @@ test_main (void)
 
   sample_p = copy_string_across_boundary (sample);
 
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
 
   byte_cnt = write (handle, sample_p, sizeof sample - 1);
   if (byte_cnt != sizeof sample - 1)

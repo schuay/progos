@@ -20,7 +20,7 @@ size_t histogram[256];
 /* Initialize buf1 with random data,
    then count the number of instances of each value within it. */
 static void
-init (void) 
+init (void)
 {
   struct arc4 arc4;
   size_t i;
@@ -41,7 +41,7 @@ sort_chunks (const char *subprocess, int exit_status)
   pid_t children[CHUNK_CNT];
   size_t i;
 
-  for (i = 0; i < CHUNK_CNT; i++) 
+  for (i = 0; i < CHUNK_CNT; i++)
     {
       char fn[128];
       char cmd[128];
@@ -53,17 +53,17 @@ sort_chunks (const char *subprocess, int exit_status)
       snprintf (fn, sizeof fn, "buf%zu", i);
       create (fn, CHUNK_SIZE);
       quiet = true;
-      CHECK ((handle = open (fn)) > 1, "open \"%s\"", fn);
+      CHECK ( (handle = open (fn)) > 1, "open \"%s\"", fn);
       write (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
 
       /* Sort with subprocess. */
       snprintf (cmd, sizeof cmd, "%s %s", subprocess, fn);
-      CHECK ((children[i] = exec (cmd)) != -1, "exec \"%s\"", cmd);
+      CHECK ( (children[i] = exec (cmd)) != -1, "exec \"%s\"", cmd);
       quiet = false;
     }
 
-  for (i = 0; i < CHUNK_CNT; i++) 
+  for (i = 0; i < CHUNK_CNT; i++)
     {
       char fn[128];
       int handle;
@@ -73,7 +73,7 @@ sort_chunks (const char *subprocess, int exit_status)
       /* Read chunk back from file. */
       quiet = true;
       snprintf (fn, sizeof fn, "buf%zu", i);
-      CHECK ((handle = open (fn)) > 1, "open \"%s\"", fn);
+      CHECK ( (handle = open (fn)) > 1, "open \"%s\"", fn);
       read (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
       quiet = false;
@@ -82,7 +82,7 @@ sort_chunks (const char *subprocess, int exit_status)
 
 /* Merge the sorted chunks in buf1 into a fully sorted buf2. */
 static void
-merge (void) 
+merge (void)
 {
   unsigned char *mp[CHUNK_CNT];
   size_t mp_left;
@@ -98,7 +98,7 @@ merge (void)
 
   /* Merge. */
   op = buf2;
-  while (mp_left > 0) 
+  while (mp_left > 0)
     {
       /* Find smallest value. */
       size_t min = 0;
@@ -111,13 +111,13 @@ merge (void)
 
       /* Advance merge pointer.
          Delete this chunk from the set if it's emptied. */
-      if ((++mp[min] - buf1) % CHUNK_SIZE == 0) 
+      if ( (++mp[min] - buf1) % CHUNK_SIZE == 0)
         mp[min] = mp[--mp_left];
     }
 }
 
 static void
-verify (void) 
+verify (void)
 {
   size_t buf_idx;
   size_t hist_idx;
@@ -125,15 +125,15 @@ verify (void)
   msg ("verify");
 
   buf_idx = 0;
-  for (hist_idx = 0; hist_idx < sizeof histogram / sizeof *histogram;
+  for (hist_idx = 0; hist_idx < sizeof histogram / sizeof * histogram;
        hist_idx++)
     {
-      while (histogram[hist_idx]-- > 0) 
+      while (histogram[hist_idx]-- > 0)
         {
           if (buf2[buf_idx] != hist_idx)
             fail ("bad value %d in byte %zu", buf2[buf_idx], buf_idx);
           buf_idx++;
-        } 
+        }
     }
 
   msg ("success, buf_idx=%'zu", buf_idx);

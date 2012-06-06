@@ -38,12 +38,12 @@ gdt_init (void)
   uint64_t gdtr_operand;
 
   /* Initialize GDT. */
-  gdt[SEL_NULL / sizeof *gdt] = 0;
-  gdt[SEL_KCSEG / sizeof *gdt] = make_code_desc (0);
-  gdt[SEL_KDSEG / sizeof *gdt] = make_data_desc (0);
-  gdt[SEL_UCSEG / sizeof *gdt] = make_code_desc (3);
-  gdt[SEL_UDSEG / sizeof *gdt] = make_data_desc (3);
-  gdt[SEL_TSS / sizeof *gdt] = make_tss_desc (tss_get ());
+  gdt[SEL_NULL / sizeof * gdt] = 0;
+  gdt[SEL_KCSEG / sizeof * gdt] = make_code_desc (0);
+  gdt[SEL_KDSEG / sizeof * gdt] = make_data_desc (0);
+  gdt[SEL_UCSEG / sizeof * gdt] = make_code_desc (3);
+  gdt[SEL_UDSEG / sizeof * gdt] = make_data_desc (3);
+  gdt[SEL_TSS / sizeof * gdt] = make_tss_desc (tss_get ());
 
   /* Load GDTR, TR.  See [IA32-v3a] 2.4.1 "Global Descriptor
      Table Register (GDTR)", 2.4.4 "Task Register (TR)", and
@@ -55,17 +55,17 @@ gdt_init (void)
 
 /* System segment or code/data segment? */
 enum seg_class
-  {
-    CLS_SYSTEM = 0,             /* System segment. */
-    CLS_CODE_DATA = 1           /* Code or data segment. */
-  };
+{
+  CLS_SYSTEM = 0,             /* System segment. */
+  CLS_CODE_DATA = 1           /* Code or data segment. */
+};
 
 /* Limit has byte or 4 kB page granularity? */
 enum seg_granularity
-  {
-    GRAN_BYTE = 0,              /* Limit has 1-byte granularity. */
-    GRAN_PAGE = 1               /* Limit has 4 kB granularity. */
-  };
+{
+  GRAN_BYTE = 0,              /* Limit has 1-byte granularity. */
+  GRAN_PAGE = 1               /* Limit has 4 kB granularity. */
+};
 
 /* Returns a segment descriptor with the given 32-bit BASE and
    20-bit LIMIT (whose interpretation depends on GRANULARITY).
@@ -94,20 +94,20 @@ make_seg_desc (uint32_t base,
   ASSERT (dpl >= 0 && dpl <= 3);
   ASSERT (granularity == GRAN_BYTE || granularity == GRAN_PAGE);
 
-  e0 = ((limit & 0xffff)             /* Limit 15:0. */
-        | (base << 16));             /* Base 15:0. */
+  e0 = ( (limit & 0xffff)            /* Limit 15:0. */
+         | (base << 16));             /* Base 15:0. */
 
-  e1 = (((base >> 16) & 0xff)        /* Base 23:16. */
-        | (type << 8)                /* Segment type. */
-        | (class << 12)              /* 0=system, 1=code/data. */
-        | (dpl << 13)                /* Descriptor privilege. */
-        | (1 << 15)                  /* Present. */
-        | (limit & 0xf0000)          /* Limit 16:19. */
-        | (1 << 22)                  /* 32-bit segment. */
-        | (granularity << 23)        /* Byte/page granularity. */
-        | (base & 0xff000000));      /* Base 31:24. */
+  e1 = ( ( (base >> 16) & 0xff)      /* Base 23:16. */
+         | (type << 8)                /* Segment type. */
+         | (class << 12)              /* 0=system, 1=code/data. */
+         | (dpl << 13)                /* Descriptor privilege. */
+         | (1 << 15)                  /* Present. */
+         | (limit & 0xf0000)          /* Limit 16:19. */
+         | (1 << 22)                  /* 32-bit segment. */
+         | (granularity << 23)        /* Byte/page granularity. */
+         | (base & 0xff000000));      /* Base 31:24. */
 
-  return e0 | ((uint64_t) e1 << 32);
+  return e0 | ( (uint64_t) e1 << 32);
 }
 
 /* Returns a descriptor for a readable code segment with base at
@@ -133,7 +133,7 @@ make_data_desc (int dpl)
 static uint64_t
 make_tss_desc (void *laddr)
 {
-  return make_seg_desc ((uint32_t) laddr, 0x67, CLS_SYSTEM, 9, 0, GRAN_BYTE);
+  return make_seg_desc ( (uint32_t) laddr, 0x67, CLS_SYSTEM, 9, 0, GRAN_BYTE);
 }
 
 
@@ -142,5 +142,5 @@ make_tss_desc (void *laddr)
 static uint64_t
 make_gdtr_operand (uint16_t limit, void *base)
 {
-  return limit | ((uint64_t) (uint32_t) base << 16);
+  return limit | ( (uint64_t) (uint32_t) base << 16);
 }

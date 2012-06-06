@@ -7,19 +7,19 @@
 
 /* A block device. */
 struct block
-  {
-    struct list_elem list_elem;         /* Element in all_blocks. */
+{
+  struct list_elem list_elem;         /* Element in all_blocks. */
 
-    char name[16];                      /* Block device name. */
-    enum block_type type;                /* Type of block device. */
-    block_sector_t size;                 /* Size in sectors. */
+  char name[16];                      /* Block device name. */
+  enum block_type type;                /* Type of block device. */
+  block_sector_t size;                 /* Size in sectors. */
 
-    const struct block_operations *ops;  /* Driver operations. */
-    void *aux;                          /* Extra data owned by driver. */
+  const struct block_operations *ops;  /* Driver operations. */
+  void *aux;                          /* Extra data owned by driver. */
 
-    unsigned long long read_cnt;        /* Number of sectors read. */
-    unsigned long long write_cnt;       /* Number of sectors written. */
-  };
+  unsigned long long read_cnt;        /* Number of sectors read. */
+  unsigned long long write_cnt;       /* Number of sectors written. */
+};
 
 /* List of all block devices. */
 static struct list all_blocks = LIST_INITIALIZER (all_blocks);
@@ -35,14 +35,14 @@ const char *
 block_type_name (enum block_type type)
 {
   static const char *block_type_names[BLOCK_CNT] =
-    {
-      "kernel",
-      "filesys",
-      "scratch",
-      "swap",
-      "raw",
-      "foreign",
-    };
+  {
+    "kernel",
+    "filesys",
+    "scratch",
+    "swap",
+    "raw",
+    "foreign",
+  };
 
   ASSERT (type < BLOCK_CNT);
   return block_type_names[type];
@@ -202,7 +202,7 @@ block_register (const char *name, enum block_type type,
   block->write_cnt = 0;
 
   printf ("%s: %'"PRDSNu" sectors (", block->name, block->size);
-  print_human_readable_size ((uint64_t) block->size * BLOCK_SECTOR_SIZE);
+  print_human_readable_size ( (uint64_t) block->size *BLOCK_SECTOR_SIZE);
   printf (")");
   if (extra_info != NULL)
     printf (", %s", extra_info);

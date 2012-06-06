@@ -15,8 +15,8 @@ test_main (void)
   int handle;
   mapid_t map;
 
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
-  CHECK ((map = mmap (handle, ACTUAL)) != MAP_FAILED, "mmap \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (map = mmap (handle, ACTUAL)) != MAP_FAILED, "mmap \"sample.txt\"");
 
   close (handle);
 

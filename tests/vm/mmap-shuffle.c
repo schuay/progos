@@ -21,14 +21,14 @@ test_main (void)
 
   /* Create file, mmap. */
   CHECK (create ("buffer", SIZE), "create \"buffer\"");
-  CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");
+  CHECK ( (handle = open ("buffer")) > 1, "open \"buffer\"");
   CHECK (mmap (handle, buf) != MAP_FAILED, "mmap \"buffer\"");
 
   /* Initialize. */
   for (i = 0; i < SIZE; i++)
     buf[i] = i * 257;
   msg ("init: cksum=%lu", cksum (buf, SIZE));
-    
+
   /* Shuffle repeatedly. */
   for (i = 0; i < 10; i++)
     {

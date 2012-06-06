@@ -46,7 +46,7 @@ arc4_crypt (struct arc4 *arc4, void *buf_, size_t size)
       i += 1;
       j += s[i];
       swap_byte (s + i, s + j);
-      *buf++ ^= s[(s[i] + s[j]) & 255];
+      *buf++ ^= s[ (s[i] + s[j]) & 255];
     }
   arc4->i = i;
   arc4->j = j;

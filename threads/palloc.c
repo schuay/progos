@@ -27,11 +27,11 @@
 
 /* A memory pool. */
 struct pool
-  {
-    struct lock lock;                   /* Mutual exclusion. */
-    struct bitmap *used_map;            /* Bitmap of free pages. */
-    uint8_t *base;                      /* Base of pool. */
-  };
+{
+  struct lock lock;                   /* Mutual exclusion. */
+  struct bitmap *used_map;            /* Bitmap of free pages. */
+  uint8_t *base;                      /* Base of pool. */
+};
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
@@ -154,15 +154,17 @@ palloc_dump_used_pages ()
 {
   struct pool *pool;
   int pool_index;
-  for (pool_index = 0; pool_index < 2; pool_index++) {
-    pool = (pool_index == 0) ? &kernel_pool : &user_pool;
-    printf("%s Pool at %p\n", (pool_index == 0) ? "kernel" : "user", pool->base);
-    size_t start = 0, index;
-    while ((index = bitmap_scan(pool->used_map,start,1,true)) != BITMAP_ERROR) {
-      printf(" - %p\n",pool->base + (PGSIZE * index));
-      start = index + 1;
+  for (pool_index = 0; pool_index < 2; pool_index++)
+    {
+      pool = (pool_index == 0) ? &kernel_pool : &user_pool;
+      printf ("%s Pool at %p\n", (pool_index == 0) ? "kernel" : "user", pool->base);
+      size_t start = 0, index;
+      while ( (index = bitmap_scan (pool->used_map, start, 1, true)) != BITMAP_ERROR)
+        {
+          printf (" - %p\n", pool->base + (PGSIZE * index));
+          start = index + 1;
+        }
     }
-  }
 }
 
 /* Initializes pool P as starting at START and ending at END,

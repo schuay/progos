@@ -19,8 +19,8 @@ test_main (void)
 
   /* Write file via mmap. */
   CHECK (create ("sample.txt", strlen (sample)), "create \"sample.txt\"");
-  CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
-  CHECK ((map = mmap (handle, ACTUAL)) != MAP_FAILED, "mmap \"sample.txt\"");
+  CHECK ( (handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
+  CHECK ( (map = mmap (handle, ACTUAL)) != MAP_FAILED, "mmap \"sample.txt\"");
   memcpy (ACTUAL, sample, strlen (sample));
   munmap (map);
 
