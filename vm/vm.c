@@ -15,38 +15,38 @@ static bool install_page (void *upage, void *kpage, bool writable);
 spt_t *
 spt_create (void)
 {
-    spt_t *spt = malloc (sizeof (spt_t));
-    ASSERT (hash_init (spt, spt_hash, spt_less, NULL));
-    return spt;
+  spt_t *spt = malloc (sizeof (spt_t));
+  ASSERT (hash_init (spt, spt_hash, spt_less, NULL));
+  return spt;
 }
 
 static unsigned
 spt_hash (const struct hash_elem *p, void *aux UNUSED)
 {
-    const struct spte *q = hash_entry (p, struct spte, hash_elem);
-    return hash_bytes (&q->vaddress, sizeof (q->vaddress));
+  const struct spte *q = hash_entry (p, struct spte, hash_elem);
+  return hash_bytes (&q->vaddress, sizeof (q->vaddress));
 }
 
 static bool
 spt_less (const struct hash_elem *a, const struct hash_elem *b,
-           void *aux UNUSED)
+          void *aux UNUSED)
 {
-    const struct spte *m = hash_entry (a, struct spte, hash_elem);
-    const struct spte *n = hash_entry (b, struct spte, hash_elem);
-    return m->vaddress < n->vaddress;
+  const struct spte *m = hash_entry (a, struct spte, hash_elem);
+  const struct spte *n = hash_entry (b, struct spte, hash_elem);
+  return m->vaddress < n->vaddress;
 }
 
 void
 spt_destroy (spt_t *spt)
 {
-    hash_destroy (spt, spte_destroy);
+  hash_destroy (spt, spte_destroy);
 }
 
 static void
 spte_destroy (struct hash_elem *e, void *aux UNUSED)
 {
-    struct spte *p = hash_entry (e, struct spte, hash_elem);
-    free (p);
+  struct spte *p = hash_entry (e, struct spte, hash_elem);
+  free (p);
 }
 
 struct spte *
@@ -64,13 +64,13 @@ spt_find (spt_t *spt, void *vaddress)
 
 struct spte *
 spte_create (struct file *file, off_t ofs, void *upage,
-    uint32_t read_bytes, bool writable)
+             uint32_t read_bytes, bool writable)
 {
   ASSERT (read_bytes <= PGSIZE);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  struct thread *t = thread_current ();
+  struct thread *t = thread_current();
 
   struct spte *spte = malloc (sizeof (struct spte));
   if (spte == NULL)
@@ -134,10 +134,10 @@ spte_load (const struct spte *spte)
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {
-  struct thread *t = thread_current ();
+  struct thread *t = thread_current();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
-      && pagedir_set_page (t->pagedir, upage, kpage, writable));
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
