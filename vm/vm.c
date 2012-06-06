@@ -4,9 +4,63 @@
 #include "lib/string.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
+/**
+ * An entry of the supplemental page table (SPT).
+ *
+ * Exactly one SPT exists per process. It stores all memory areas which contain
+ * user-accessible data, namely the stack, the executable loadable segments,
+ * and memory-mapped files. There is no dynamic memory allocation on the heap.
+ *
+ * The SPT could be implemented by creating a hash table of SPTE with the user
+ * virtual address as the key.
+ */
+struct spte
+{
+  /**
+   * The user virtual address this page is mapped to.
+   */
+  void *vaddress;
+
+  /**
+   * The associated file. Note that the SPT is not used to close open files
+   * on process termination, so memory-mapped files (which should be reopened
+   * using file_reopen) need to be tracked in some other fashion.
+   *
+   * Can be NULL if the page has no associated file (i.e., the stack).
+   */
+  struct file *file;
+
+  /**
+   * The starting offset within file. Ignored if file is NULL.
+   * 0 <= offset < filesize. offset % PGSIZE == 0.
+   */
+  off_t offset;
+
+  /**
+   * The length of the desired mapping. This is usually equal to PGSIZE, unless
+   * we are at EOF. The rest of the page is zeroed. Ignored if file is NULL.
+   * 0 <= length < PGSIZE. offset + length < filesize.
+   */
+  uint32_t length;
+
+  /**
+   * If writable is true, the page is marked read/write. Otherwise, it is
+   * read-only.
+   */
+  bool writable;
+
+  /**
+   * The hash table element.
+   */
+  struct hash_elem hash_elem;
+};
+
+static struct spte *spt_find (spt_t *spt, void *vaddress);
 static unsigned spt_hash (const struct hash_elem *p, void *aux);
 static bool spt_less (const struct hash_elem *a, const struct hash_elem *b,
                       void *aux);
@@ -63,9 +117,9 @@ spt_find (spt_t *spt, void *vaddress)
   return hash_entry (e, struct spte, hash_elem);
 }
 
-struct spte *
-spte_create (struct file *file, off_t ofs, void *upage,
-             uint32_t read_bytes, bool writable)
+bool
+spt_create_entry (struct file *file, off_t ofs, void *upage,
+                  uint32_t read_bytes, bool writable)
 {
   ASSERT (read_bytes <= PGSIZE);
   ASSERT (pg_ofs (upage) == 0);
@@ -79,7 +133,7 @@ spte_create (struct file *file, off_t ofs, void *upage,
    * remove the malloc dependency. */
   struct spte *spte = malloc (sizeof (struct spte));
   if (spte == NULL)
-    return NULL;
+    return false;
 
   spte->vaddress = upage;
   spte->file = file;
@@ -89,13 +143,16 @@ spte_create (struct file *file, off_t ofs, void *upage,
 
   hash_insert (t->spt, &spte->hash_elem);
 
-  return spte;
+  return true;
 }
 
 bool
-spte_load (const struct spte *spte)
+spt_load (spt_t *spt, void *vaddress)
 {
-  ASSERT (spte != NULL);
+  /* Retrieve the page table entry. */
+  struct spte *spte = spt_find (spt, vaddress);
+  if (spte == NULL)
+    return false;
 
   /* Get a page of memory. */
   uint8_t *kpage = palloc_get_page (PAL_USER);

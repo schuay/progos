@@ -161,12 +161,8 @@ page_fault (struct intr_frame *f)
     } else {
       /* user process access violation */
       struct thread *t = thread_current ();
-      struct spte *spte = spt_find (t->spt, pg_round_down (fault_addr));
 
-      if (spte == NULL)
-        thread_exit ();
-
-      if (! spte_load (spte))
+      if (! spt_load (t->spt, pg_round_down (fault_addr)))
         thread_exit ();
     }
   } else {
