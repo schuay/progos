@@ -55,6 +55,13 @@ struct spte
   bool writable;
 
   /**
+   * If writeback is true, the page is written back to the file when
+   * the page is unmapped (which could occur either by exiting or killing
+   * the process or by calling munmap). Ignored if file is NULL.
+   */
+  bool writeback;
+
+  /**
    * The hash table element.
    */
   struct hash_elem hash_elem;
@@ -101,6 +108,12 @@ static void
 spte_destroy (struct hash_elem *e, void *aux UNUSED)
 {
   struct spte *p = hash_entry (e, struct spte, hash_elem);
+
+  if (p->writeback)
+    {
+      /* TODO */
+    }
+
   free (p);
 }
 
@@ -119,7 +132,7 @@ spt_find (spt_t *spt, void *vaddress)
 
 bool
 spt_create_entry (struct file *file, off_t ofs, void *upage,
-                  uint32_t read_bytes, bool writable)
+                  uint32_t read_bytes, bool writable, bool writeback)
 {
   ASSERT (read_bytes <= PGSIZE);
   ASSERT (pg_ofs (upage) == 0);
@@ -139,6 +152,7 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   spte->file = file;
   spte->offset = (file == NULL ? 0 : ofs);
   spte->length = (file == NULL ? 0 : read_bytes);
+  spte->writeback = (file == NULL ? false : writeback);
   spte->writable = writable;
 
   hash_insert (t->spt, &spte->hash_elem);

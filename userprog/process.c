@@ -624,7 +624,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
 
       /* Add mapping to supplemental page table. */
-      if (!spt_create_entry (file, ofs, upage, page_read_bytes, writable))
+      if (!spt_create_entry (file, ofs, upage, page_read_bytes, writable, false))
         return false;
 
       /* Advance. */

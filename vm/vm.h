@@ -30,7 +30,7 @@ void spt_destroy (spt_t *s);
  * Returns false on error.
  */
 bool spt_create_entry (struct file *file, off_t ofs, void *upage,
-                       uint32_t read_bytes, bool writable);
+                       uint32_t read_bytes, bool writable, bool writeback);
 
 /**
  * Loads the page mapped to vaddress in spt.
