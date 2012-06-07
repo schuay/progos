@@ -164,6 +164,13 @@ page_fault (struct intr_frame *f)
         }
       else
         {
+          /* If the page is present, the process has done something it
+           * shouldn't. Death penalty. */
+          if (! not_present)
+            {
+              thread_exit ();
+            }
+
           /* user process access violation */
           struct thread *t = thread_current ();
 
