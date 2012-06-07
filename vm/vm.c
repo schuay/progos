@@ -155,7 +155,12 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   spte->writeback = (file == NULL ? false : writeback);
   spte->writable = writable;
 
-  hash_insert (t->spt, &spte->hash_elem);
+  /* The address is already mapped. */
+  if (hash_insert (t->spt, &spte->hash_elem) != NULL)
+    {
+      free (spte);
+      return false;
+    }
 
   return true;
 }
