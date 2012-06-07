@@ -14,6 +14,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "userprog/syscall.h"
+#include "vm/mmap.h"
 
 #define STACK_SLOT_SIZE sizeof(int)
 
@@ -630,16 +631,12 @@ syscall_close (void *sp, bool *segfault)
   return 0;
 }
 
-/** TODO: (re)move this. */
-typedef int mapid_t;
-
 /* Memory-map the given file */
 static int
 syscall_mmap (void *sp, bool *segfault)
 {
   int fd;
   void *addr;
-  mapid_t id = 2; /**< TODO: dummy value. */
 
   /* get arguments */
   if (! copy_from_user (&fd, STACK_ADDR (sp, 1)) ||
@@ -649,13 +646,7 @@ syscall_mmap (void *sp, bool *segfault)
       return 0;
     }
 
-  /* TODO
-   * Reopen the file; check for mapping collisions; map the file; add it to the
-   * list of this thread's open files and keep track of the mapped addresses so
-   * we can munmap it later. Read section 4.3.4 *carefully* when implementing
-   * this section. */
-
-  return (int) id;
+  return mmap (fd, addr);
 }
 
 /* Memory-unmap the given file */
@@ -671,10 +662,7 @@ syscall_munmap (void *sp, bool *segfault)
       return 0;
     }
 
-  /* TODO
-   * Unmap the pages associated with id. Close the associated file and remove it
-   * from the list of open files. Read section 4.3.4 *carefully* when
-   * implementing this section. */
+  munmap (id);
 
   return 0;
 }
