@@ -184,7 +184,9 @@ syscall_filesize,
 syscall_read,
 syscall_seek,
 syscall_tell,
-syscall_close;
+syscall_close,
+syscall_mmap,
+syscall_munmap;
 
 /* Register syscall_handler for interrupt 0x30 */
 void
@@ -246,6 +248,12 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_CLOSE:
       fp = syscall_close;
+      break;
+    case SYS_MMAP:
+      fp = syscall_mmap;
+      break;
+    case SYS_MUNMAP:
+      fp = syscall_munmap;
       break;
     default:
       goto fail;
@@ -619,5 +627,54 @@ syscall_close (void *sp, bool *segfault)
 
   /* no way to return something sensible function (void) */
   (void) process_close_file (fd);
+  return 0;
+}
+
+/** TODO: (re)move this. */
+typedef int mapid_t;
+
+/* Memory-map the given file */
+static int
+syscall_mmap (void *sp, bool *segfault)
+{
+  int fd;
+  void *addr;
+  mapid_t id = 2; /**< TODO: dummy value. */
+
+  /* get arguments */
+  if (! copy_from_user (&fd, STACK_ADDR (sp, 1)) ||
+      ! copy_from_user (&addr, STACK_ADDR (sp, 2)))
+    {
+      *segfault = true;
+      return 0;
+    }
+
+  /* TODO
+   * Reopen the file; check for mapping collisions; map the file; add it to the
+   * list of this thread's open files and keep track of the mapped addresses so
+   * we can munmap it later. Read section 4.3.4 *carefully* when implementing
+   * this section. */
+
+  return (int) id;
+}
+
+/* Memory-unmap the given file */
+static int
+syscall_munmap (void *sp, bool *segfault)
+{
+  mapid_t id;
+
+  /* get arguments */
+  if (! copy_from_user (&id, STACK_ADDR (sp, 1)))
+    {
+      *segfault = true;
+      return 0;
+    }
+
+  /* TODO
+   * Unmap the pages associated with id. Close the associated file and remove it
+   * from the list of open files. Read section 4.3.4 *carefully* when
+   * implementing this section. */
+
   return 0;
 }
