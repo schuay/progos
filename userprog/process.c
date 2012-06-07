@@ -795,6 +795,44 @@ process_open_file (const char *fname)
   return fd;
 }
 
+/* Creates a new file descriptor for the already opened file referenced
+ * by old_fd and inserts it into the processes fd_table. Returns the new
+ * file descriptor (as struct file). */
+struct file *
+process_reopen_file (int old_fd)
+{
+  struct file *old = process_get_file (old_fd);
+  if (old == NULL)
+    {
+      return NULL;
+    }
+
+  struct fd_table *fdt = &process_current()->fd_table;
+  if (fdt->fd_free >= fdt->fd_cap)
+    return NULL;
+
+  struct file *new = file_reopen (old);
+  if (new == NULL)
+    {
+      return NULL;
+    }
+
+  /* TODO: merge this code with the one in process_open_file */
+  int new_fd = fdt->fd_free++;
+  fdt->fds[new_fd] = new;
+
+  /* update index of free/max file descriptor index*/
+  if (new_fd > fdt->fd_max) fdt->fd_max = new_fd;
+  while (fdt->fds[fdt->fd_free] != NULL)
+    {
+      fdt->fd_free++;
+      if (fdt->fd_free >= fdt->fd_cap)
+        break;
+    }
+
+  return new;
+}
+
 /* Get the file associated with the given file
    descriptor; return NULL if no file is associated
    with the given descriptor */

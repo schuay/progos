@@ -44,6 +44,7 @@ void process_exit (void);
 void process_activate (void);
 
 int process_open_file (const char *fname);
+struct file *process_reopen_file (int old_fd);
 struct file *process_get_file (int fd);
 void process_lock_filesys (void);
 void process_unlock_filesys (void);
