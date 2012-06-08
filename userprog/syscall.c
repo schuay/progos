@@ -205,6 +205,11 @@ syscall_handler (struct intr_frame *f)
   int result;
   void *sp = f->esp;
 
+  /* Save the sp in the thread struct, so the page fault handler can check
+     whether we access the stack correctly. */
+  struct thread *t = thread_current ();
+  t->esp = sp;
+
   /* The system call number and the arguments are on the stack */
   if (! copy_from_user (&syscall_nr, sp))
     goto fail;

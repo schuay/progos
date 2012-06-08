@@ -106,6 +106,9 @@ struct thread
 
   /* Owned by vm/vm.h */
   spt_t *spt;                         /* Supplemental page table. */
+
+  /* Shared between userprog/syscall.c and userprog/exception.c. */
+  void *esp;
 #endif
 
   /* Owned by thread.c. */

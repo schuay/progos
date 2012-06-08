@@ -153,37 +153,36 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, adapt the rest of the function
      body, adding code that brings in the page to
      which fault_addr refers. */
+  void *sp = f->esp;
+
   if (is_user_vaddr (fault_addr))
     {
+      /* Page fault in syscall. */
       if (! user)
         {
-          /* syscall exception; set eax and eip */
-          f->eip = (void *) f->eax;
-          f->eax = 0xFFFFFFFF;
-          return;
-        }
-      else
-        {
-          /* If the page is present, the process has done something it
-           * shouldn't. Death penalty. */
-          if (! not_present)
-            {
-              thread_exit ();
-            }
-
-          /* user process access violation */
           struct thread *t = thread_current ();
-
-          /* Validate stack access. */
-          if (fault_addr > PHYS_BASE - STACK_MAX_SIZE &&
-              fault_addr < f->esp - STACK_MAX_OFFSET)
-            {
-              thread_exit ();
-            }
-
-          if (spt_load (t->spt, pg_round_down (fault_addr)) == NULL)
-            thread_exit ();
+          sp = t->esp;
         }
+
+      /* If the page is present, the process has done something it
+       * shouldn't. Death penalty. */
+      if (! not_present)
+        {
+          thread_exit ();
+        }
+
+      /* user process access violation */
+      struct thread *t = thread_current ();
+
+      /* Validate stack access. */
+      if (fault_addr > PHYS_BASE - STACK_MAX_SIZE &&
+          fault_addr < sp - STACK_MAX_OFFSET)
+        {
+          thread_exit ();
+        }
+
+      if (spt_load (t->spt, pg_round_down (fault_addr)) == NULL)
+        thread_exit ();
     }
   else
     {
