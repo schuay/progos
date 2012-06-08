@@ -137,6 +137,7 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   ASSERT (read_bytes <= PGSIZE);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
+  ASSERT (is_user_vaddr (upage));
 
   struct thread *t = thread_current();
 
@@ -194,6 +195,12 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, bool writable, bool writeback)
 {
   ASSERT (ofs % PGSIZE == 0);
+
+  /* Prevent mapping in kernel space. */
+  if (! is_user_vaddr (upage))
+    {
+      return false;
+    }
 
   /* Check this explicitly, so the mmap handler doesn't have to. */
   if (pg_ofs (upage) != 0)
