@@ -768,15 +768,16 @@ init_fd_table (struct fd_table *table)
   return true;
 }
 
+/* Maps the file referenced by fd into the memory at addr.
+   It first reopens the file and then maps it.
+   On success the new fd is returned. If an error occured -1 is returned.
+
+   Note that we don't have to explicitly keep track of mmaped files. If a
+   file has mappings the according struct file pointer is stored at each
+   one. */
 mapid_t
 process_mmap_file (int fd, void *addr)
 {
-  /* TODO
-   * Reopen the file; check for mapping collisions; map the file; add it to the
-   * list of this thread's open files and keep track of the mapped addresses so
-   * we can munmap it later. Read section 4.3.4 *carefully* when implementing
-   * this section. */
-
   if (fd < 2 || addr == NULL)
     {
       return -1;
@@ -803,14 +804,12 @@ process_mmap_file (int fd, void *addr)
   return new_fd;
 }
 
+/* Unmaps an mmapped file.
+   Actually it tries to unmap any file for which mapping is a valid fd,
+   but it will never find pages to unmap for a file which is no mapping. */
 void
 process_munmap_file (mapid_t mapping)
 {
-  /* TODO
-   * Unmap the pages associated with id. Close the associated file and remove it
-   * from the list of open files. Read section 4.3.4 *carefully* when
-   * implementing this section. */
-
   struct file *f = process_get_file (mapping);
   if (f == NULL)
     {
