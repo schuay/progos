@@ -235,8 +235,6 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
              of its previously mapped pages. If something else failed,
              we assume that the process will exit (and thus unmap all
              pages) anyway. */
-          /* FIXME: mapping one's own executable and failing will result in the
-             text and data being unmapped. */
           if (file != NULL)
             {
               spt_unmap_file (file);
