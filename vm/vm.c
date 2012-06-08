@@ -78,7 +78,15 @@ spt_t *
 spt_create (void)
 {
   spt_t *spt = malloc (sizeof (spt_t));
-  ASSERT (hash_init (spt, spt_hash, spt_less, NULL));
+  if (spt == NULL)
+    {
+      return NULL;
+    }
+  if (! hash_init (spt, spt_hash, spt_less, NULL))
+    {
+      return NULL;
+    }
+
   return spt;
 }
 

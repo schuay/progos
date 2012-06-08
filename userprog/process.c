@@ -427,6 +427,10 @@ load (struct start_aux_data *aux, void (**eip) (void), void **esp)
 
   /* Allocate supplemental page table. */
   t->spt = spt_create ();
+  if (t->spt == NULL)
+    {
+      return false;
+    }
 
   /* Coarse grained filesystem lock for loading */
   lock_acquire (&filesys_lock);
