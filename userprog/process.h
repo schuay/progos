@@ -43,8 +43,13 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+typedef int mapid_t;
+
+mapid_t process_mmap_file (int fd, void *addr);
+void process_munmap_file (mapid_t mapping);
+
 int process_open_file (const char *fname);
-struct file *process_reopen_file (int old_fd);
+int process_reopen_file (int old_fd);
 struct file *process_get_file (int fd);
 void process_lock_filesys (void);
 void process_unlock_filesys (void);

@@ -14,7 +14,6 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "userprog/syscall.h"
-#include "vm/mmap.h"
 
 #define STACK_SLOT_SIZE sizeof(int)
 
@@ -646,7 +645,7 @@ syscall_mmap (void *sp, bool *segfault)
       return 0;
     }
 
-  return mmap (fd, addr);
+  return process_mmap_file (fd, addr);
 }
 
 /* Memory-unmap the given file */
@@ -662,7 +661,7 @@ syscall_munmap (void *sp, bool *segfault)
       return 0;
     }
 
-  munmap (id);
+  process_munmap_file (id);
 
   return 0;
 }

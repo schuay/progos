@@ -760,6 +760,53 @@ init_fd_table (struct fd_table *table)
   return true;
 }
 
+mapid_t
+process_mmap_file (int fd, void *addr)
+{
+  /* TODO
+   * Reopen the file; check for mapping collisions; map the file; add it to the
+   * list of this thread's open files and keep track of the mapped addresses so
+   * we can munmap it later. Read section 4.3.4 *carefully* when implementing
+   * this section. */
+
+  int new_fd = process_reopen_file (fd);
+  if (new_fd == -1)
+    {
+      return -1;
+    }
+
+  struct file *f = process_get_file (new_fd);
+  if (f == NULL)
+    {
+      return -1;
+    }
+
+  if (! spt_map_file (f, 0, addr, file_length (f), true, true))
+    {
+      process_close_file (new_fd);
+      return -1;
+    }
+
+  return new_fd;
+}
+
+void
+process_munmap_file (mapid_t mapping)
+{
+  /* TODO
+   * Unmap the pages associated with id. Close the associated file and remove it
+   * from the list of open files. Read section 4.3.4 *carefully* when
+   * implementing this section. */
+
+  struct file *f = process_get_file (mapping);
+  if (f == NULL)
+    {
+      return;
+    }
+
+  spt_unmap_file (f);
+}
+
 /* Open the file with the given name; returns
    a file descriptor for this file if successful,
    and a negative value otherwise */
@@ -793,24 +840,24 @@ process_open_file (const char *fname)
 
 /* Creates a new file descriptor for the already opened file referenced
  * by old_fd and inserts it into the processes fd_table. Returns the new
- * file descriptor (as struct file). */
-struct file *
+ * file descriptor or -1 if an error occured. */
+int
 process_reopen_file (int old_fd)
 {
   struct file *old = process_get_file (old_fd);
   if (old == NULL)
     {
-      return NULL;
+      return -1;
     }
 
   struct fd_table *fdt = &process_current()->fd_table;
   if (fdt->fd_free >= fdt->fd_cap)
-    return NULL;
+    return -1;
 
   struct file *new = file_reopen (old);
   if (new == NULL)
     {
-      return NULL;
+      return -1;
     }
 
   /* TODO: merge this code with the one in process_open_file */
@@ -826,7 +873,7 @@ process_reopen_file (int old_fd)
         break;
     }
 
-  return new;
+  return new_fd;
 }
 
 /* Get the file associated with the given file
