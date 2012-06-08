@@ -263,6 +263,8 @@ process_exit (void)
   if (thread->process == NULL)
     return; /* not a process, nothing else left to do */
 
+  spt_destroy (thread->spt);
+
   struct process *proc = thread->process;
   uint32_t *pd;
 
