@@ -605,32 +605,28 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  while (read_bytes > 0 || zero_bytes > 0)
+  /* Map file into memory. If the last page is not filled, it will be
+   * padded with zeros. */
+  if (! spt_map_file (file, ofs, upage, read_bytes, writable, false))
     {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      return false;
+    }
 
-      /* If the page contains no data from the file, do not associate it
-         with the page. */
-      if (page_zero_bytes == PGSIZE)
+  /* Calculate the remaining pages. */
+  zero_bytes = (uint32_t) pg_round_down ( (void *) zero_bytes);
+  upage = pg_round_up (upage + read_bytes);
+
+  while (zero_bytes > 0)
+    {
+      if (! spt_create_entry (NULL, 0, upage, 0, writable, false))
         {
-          file = NULL;
-          ofs = 0;
+          return false;
         }
 
-      /* Add mapping to supplemental page table. */
-      if (!spt_create_entry (file, ofs, upage, page_read_bytes, writable, false))
-        return false;
-
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
+      zero_bytes -= PGSIZE;
       upage += PGSIZE;
-      ofs += PGSIZE;
     }
+
   return true;
 }
 

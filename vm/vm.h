@@ -38,4 +38,21 @@ bool spt_create_entry (struct file *file, off_t ofs, void *upage,
  */
 void *spt_load (spt_t *spt, void *vaddress);
 
+/**
+ * Maps a read_bytes long memory area starting at upage.
+ * If writable is true, the process can write to the area.
+ * If a file is specified, the area will be backed by it.
+ * If mapping an actual file fails, all pages previously mapped to
+ * this file will be removed, however, if no file is specified and
+ * the mapping fails at some point, all pages mapped up to it will
+ * remain in the SPT.
+ */
+bool spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
+                   uint32_t read_bytes, bool writable, bool writeback);
+
+/**
+ * Removes all mappings for file. (file != NULL)
+ */
+void spt_unmap_file (struct file *file);
+
 #endif /* vm/vm.h */

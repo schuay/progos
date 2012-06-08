@@ -165,6 +165,71 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   return true;
 }
 
+void
+spt_unmap_file (struct file *file)
+{
+  ASSERT (file != NULL);
+
+  struct thread *t = thread_current();
+
+  /* FIXME: this is _very_ inefficient */
+  struct hash_iterator i;
+  hash_first (&i, t->spt);
+  while (hash_next (&i))
+    {
+      struct hash_elem *e = hash_cur (&i);
+      struct spte *p = hash_entry (e, struct spte, hash_elem);
+
+      if (p->file == file)
+        {
+          hash_delete (t->spt, e);
+          spte_destroy (e, NULL);
+          hash_first (&i, t->spt);
+        }
+    }
+}
+
+bool
+spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, bool writable, bool writeback)
+{
+  ASSERT (ofs % PGSIZE == 0);
+
+  /* Check this explicitly, so the mmap handler doesn't have to. */
+  if (pg_ofs (upage) != 0)
+    {
+      return false;
+    }
+
+  while (read_bytes > 0)
+    {
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+
+      /* Add mapping to supplemental page table. */
+      if (! spt_create_entry (file, ofs, upage, page_read_bytes,
+                              writable, writeback))
+        {
+          /* If we tried to map a file previously, we have to unmap all
+             of its previously mapped pages. If something else failed,
+             we assume that the process will exit (and thus unmap all
+             pages) anyway. */
+          /* FIXME: mapping one's own executable and failing will result in the
+             text and data being unmapped. */
+          if (file != NULL)
+            {
+              spt_unmap_file (file);
+            }
+          return false;
+        }
+
+      read_bytes -= page_read_bytes;
+      upage += PGSIZE;
+      ofs += PGSIZE;
+    }
+
+  return true;
+}
+
 void *
 spt_load (spt_t *spt, void *vaddress)
 {
