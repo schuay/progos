@@ -769,6 +769,11 @@ process_mmap_file (int fd, void *addr)
    * we can munmap it later. Read section 4.3.4 *carefully* when implementing
    * this section. */
 
+  if (fd < 2 || addr == NULL)
+    {
+      return -1;
+    }
+
   int new_fd = process_reopen_file (fd);
   if (new_fd == -1)
     {
