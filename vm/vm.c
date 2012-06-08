@@ -109,9 +109,15 @@ spte_destroy (struct hash_elem *e, void *aux UNUSED)
 {
   struct spte *p = hash_entry (e, struct spte, hash_elem);
 
-  if (p->writeback)
+  struct thread *t = thread_current();
+  if (p->writeback && pagedir_is_dirty (t->pagedir, p->vaddress))
     {
-      /* TODO */
+      process_lock_filesys ();
+
+      file_seek (p->file, p->offset);
+      (void) file_write (p->file, p->vaddress, p->length);
+
+      process_unlock_filesys ();
     }
 
   free (p);
@@ -138,6 +144,7 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
   ASSERT (is_user_vaddr (upage));
+  ASSERT (!writeback || file != NULL) /* writeback -> (file != NULL) */
 
   struct thread *t = thread_current();
 
