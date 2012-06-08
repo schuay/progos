@@ -3,7 +3,7 @@
 
 #include "threads/thread.h"
 
-#define STACK_MAX_SIZE (8 * 1024 * 1024) /**< 8 MiB */
+#define STACK_MAX_SIZE (4 * 1024 * 1024) /**< 4 MiB */
 #define STACK_MAX_OFFSET (32) /** Used by pusha. */
 
 /* In the current implementation, the capacity is fixed to 1024 (PGSIZE/4) */

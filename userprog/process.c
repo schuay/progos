@@ -656,6 +656,8 @@ setup_stack (struct start_aux_data *aux, void **esp)
   uint8_t *kpage = NULL;
   char **kpage_end;
 
+  /* TODO: This doesn't work quite well, if the stack is 8 MiB large, we run out
+     of memory at about 13 processes. Better map on demand. */
   /* Map the stack, and load the first page immediately. */
   for (i = 0; i < STACK_MAX_SIZE; i += PGSIZE)
     if (!spt_create_entry (NULL, 0, (void *) STACK_PAGE_START - i, 0, true, false))
