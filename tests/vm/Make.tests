@@ -6,7 +6,7 @@ pt-write-code2 pt-grow-stk-sc mmap-read	\
 mmap-close mmap-unmap mmap-overlap mmap-twice mmap-write mmap-exit	\
 mmap-shuffle mmap-bad-fd mmap-clean mmap-inherit mmap-misalign		\
 mmap-null mmap-over-code mmap-over-data mmap-over-stk mmap-remove	\
-mmap-zero mmap-lazy-seq)
+mmap-zero mmap-lazy-seq mmap-cl-wrt)
 
 # Deactivated
 PAGE_TESTS=page-linear page-parallel page-merge-seq	\
@@ -63,6 +63,9 @@ tests/main.c
 tests/vm/mmap-over-stk_SRC = tests/vm/mmap-over-stk.c tests/lib.c tests/main.c
 tests/vm/mmap-remove_SRC = tests/vm/mmap-remove.c tests/lib.c tests/main.c
 tests/vm/mmap-zero_SRC = tests/vm/mmap-zero.c tests/lib.c tests/main.c
+
+# Added by ms
+tests/vm/mmap-cl-wrt_SRC = tests/vm/mmap-cl-wrt.c tests/lib.c tests/main.c
 
 tests/vm/child-linear_SRC = tests/vm/child-linear.c tests/arc4.c tests/lib.c
 tests/vm/child-qsort_SRC = tests/vm/child-qsort.c tests/vm/qsort.c tests/lib.c
