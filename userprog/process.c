@@ -891,6 +891,11 @@ void process_unlock_filesys (void)
   lock_release (&filesys_lock);
 }
 
+bool process_has_filesys_lock (void)
+{
+  return lock_held_by_current_thread (&filesys_lock);
+}
+
 /* Close the file associated with the given file
    descriptor; returns true if close was successful */
 bool

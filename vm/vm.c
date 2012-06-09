@@ -399,12 +399,20 @@ spt_load (spt_t *spt, void *vaddress)
   /* Load this page. */
   if (spte->file != NULL)
     {
-      process_lock_filesys ();
+      bool has_lock = process_has_filesys_lock ();
+
+      if (! has_lock)
+        {
+          process_lock_filesys ();
+        }
 
       file_seek (spte->file, spte->offset);
       int read_bytes = file_read (spte->file, kpage, spte->length);
 
-      process_unlock_filesys ();
+      if (! has_lock)
+        {
+          process_unlock_filesys ();
+        }
 
       if (read_bytes != (int) spte->length)
         {

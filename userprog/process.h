@@ -50,6 +50,7 @@ int process_open_file (const char *fname);
 struct file *process_get_file (int fd);
 void process_lock_filesys (void);
 void process_unlock_filesys (void);
+bool process_has_filesys_lock (void);
 bool process_close_file (int fd);
 
 #endif /* userprog/process.h */
