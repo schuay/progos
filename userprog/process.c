@@ -614,7 +614,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   /* Map file into memory. If the last page is not filled, it will be
    * padded with zeros. */
-  if (spt_map_file (file, ofs, upage, read_bytes, writable, false) < 0)
+  if (! spt_map_segment (file, ofs, upage, read_bytes, writable))
     {
       return false;
     }
@@ -781,26 +781,27 @@ process_mmap_file (int fd, void *addr)
       return -1;
     }
 
-  int new_fd = process_reopen_file (fd);
-  if (new_fd == -1)
+  struct file *old = process_get_file (fd);
+  if (old == NULL)
     {
       return -1;
     }
 
-  struct file *f = process_get_file (new_fd);
-  if (f == NULL)
+  process_lock_filesys ();
+  struct file *new = file_reopen (old);
+  process_unlock_filesys ();
+  if (new == NULL)
     {
       return -1;
     }
 
-  lock_acquire (&filesys_lock);
-  uint32_t len = file_length (f);
-  lock_release (&filesys_lock);
+  process_lock_filesys ();
+  uint32_t len = file_length (new);
+  process_unlock_filesys ();
 
   mapid_t id;
-  if ( (id = spt_map_file (f, 0, addr, len, true, true)) < 0)
+  if ( (id = spt_map_file (new, 0, addr, len, true, true)) < 0)
     {
-      process_close_file (new_fd);
       return -1;
     }
 
@@ -822,23 +823,6 @@ process_open_file (const char *fname)
 {
   lock_acquire (&filesys_lock);
   struct file *f = filesys_open (fname);
-  lock_release (&filesys_lock);
-
-  return process_add_file (f);
-}
-
-/* Creates a new file descriptor for the already opened file referenced
- * by old_fd and inserts it into the processes fd_table. Returns the new
- * file descriptor or -1 if an error occured. */
-int
-process_reopen_file (int old_fd)
-{
-  struct file *old = process_get_file (old_fd);
-  if (old == NULL)
-    return -1;
-
-  lock_acquire (&filesys_lock);
-  struct file *f = file_reopen (old);
   lock_release (&filesys_lock);
 
   return process_add_file (f);

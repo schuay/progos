@@ -27,9 +27,9 @@ struct spte
   void *vaddress;
 
   /**
-   * The associated file. Note that the SPT is not used to close open files
-   * on process termination, so memory-mapped files (which should be reopened
-   * using file_reopen) need to be tracked in some other fashion.
+   * The associated file. Note that the SPT is used to close open files
+   * on process termination, so memory-mapped files (which must be reopened
+   * using file_reopen) must not be used in any other location.
    *
    * Can be NULL if the page has no associated file (i.e., the stack).
    */
@@ -79,6 +79,7 @@ struct spte
  */
 struct mape
 {
+  struct file *file;
   mapid_t mapid;
   void *vaddress;
   struct hash_elem hash_elem;
@@ -98,6 +99,9 @@ static bool file_less (const struct hash_elem *a, const struct hash_elem *b,
 static void spte_destroy (struct hash_elem *e, void *aux);
 static void mape_destroy (struct hash_elem *e, void *aux);
 static bool install_page (void *upage, void *kpage, bool writable);
+
+static bool spt_map (struct file *file, mapid_t mapid, off_t ofs, void *upage,
+                     uint32_t read_bytes, bool writable, bool writeback);
 
 spt_t *
 spt_create (void)
@@ -189,6 +193,9 @@ static void
 mape_destroy (struct hash_elem *e, void *aux UNUSED)
 {
   struct mape *p = hash_entry (e, struct mape, hash_elem);
+  process_lock_filesys ();
+  file_close (p->file);
+  process_unlock_filesys ();
   free (p);
 }
 
@@ -232,7 +239,7 @@ spt_create_file_entry (struct file *file, mapid_t mapid, off_t ofs, void *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
   ASSERT (is_user_vaddr (upage));
-  ASSERT (!writeback || file != NULL) /* writeback -> (file != NULL) */
+  ASSERT (!writeback || file != NULL); /* writeback -> (file != NULL) */
 
   struct thread *t = thread_current();
 
@@ -292,24 +299,57 @@ spt_unmap_file (mapid_t id)
   mape_destroy (&mape->hash_elem, NULL);
 }
 
+bool
+spt_map_segment (struct file *file, off_t ofs, void *upage, uint32_t read_bytes,
+                 bool writable)
+{
+  return spt_map (file, -1, ofs, upage, read_bytes, writable, false);
+}
+
+static bool
+spt_map (struct file *file, mapid_t mapid, off_t ofs, void *upage,
+         uint32_t read_bytes, bool writable, bool writeback)
+{
+  ASSERT (ofs % PGSIZE == 0);
+
+  /* Fail if size is 0 or an attempt to map to 0x0 is made. */
+  if (read_bytes == 0 || upage == 0)
+    return false;
+
+  /* Prevent mapping in kernel space. */
+  if (! is_user_vaddr (upage))
+    return false;
+
+  /* Check this explicitly, so the mmap handler doesn't have to. */
+  if (pg_ofs (upage) != 0)
+    return false;
+
+  /* Map the file. */
+  while (read_bytes > 0)
+    {
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+
+      /* Add mapping to supplemental page table. */
+      if (! spt_create_file_entry (file, mapid, ofs, upage, page_read_bytes,
+                                   writable, writeback))
+        {
+          return false;
+        }
+
+      read_bytes -= page_read_bytes;
+      upage += PGSIZE;
+      ofs += PGSIZE;
+    }
+
+  return true;
+}
+
 mapid_t
 spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, bool writable, bool writeback)
 {
   ASSERT (file != NULL);
   ASSERT (ofs % PGSIZE == 0);
-
-  /* Fail if size is 0 or an attempt to map to 0x0 is made. */
-  if (read_bytes == 0 || upage == 0)
-    return -1;
-
-  /* Prevent mapping in kernel space. */
-  if (! is_user_vaddr (upage))
-    return -1;
-
-  /* Check this explicitly, so the mmap handler doesn't have to. */
-  if (pg_ofs (upage) != 0)
-    return -1;
 
   /* Obtain the next available map id, save our mapping, and update the next
    * free id. */
@@ -320,6 +360,7 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
   struct thread *t = thread_current ();
   mapid_t id = t->spt->mapid_free;
 
+  mape->file = file;
   mape->mapid = id;
   mape->vaddress = upage;
 
@@ -333,29 +374,10 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
     t->spt->mapid_free++;
   while (mape_find (&t->spt->mapped_files, t->spt->mapid_free) != NULL);
 
-  /* Map the file. */
-  while (read_bytes > 0)
+  if (! spt_map (file, id, ofs, upage, read_bytes, writable, writeback))
     {
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-
-      /* Add mapping to supplemental page table. */
-      if (! spt_create_file_entry (file, id, ofs, upage, page_read_bytes,
-                                   writable, writeback))
-        {
-          /* If we tried to map a file previously, we have to unmap all
-             of its previously mapped pages. If something else failed,
-             we assume that the process will exit (and thus unmap all
-             pages) anyway. */
-          if (file != NULL)
-            {
-              spt_unmap_file (id);
-            }
-          return -1;
-        }
-
-      read_bytes -= page_read_bytes;
-      upage += PGSIZE;
-      ofs += PGSIZE;
+      spt_unmap_file (id);
+      return -1;;
     }
 
   return id;
