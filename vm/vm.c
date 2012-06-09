@@ -67,11 +67,27 @@ struct spte
   struct hash_elem hash_elem;
 };
 
+/**
+ * Associates a mapped file with its first mapped virtual address.
+ * File mappings are always contiguous, which we can exploit for efficient
+ * unmapping.
+ */
+struct mape
+{
+  struct file *file;
+  void *vaddress;
+  struct hash_elem hash_elem;
+};
+
 static struct spte *spt_find (spt_t *spt, void *vaddress);
 static unsigned spte_hash (const struct hash_elem *p, void *aux);
 static bool spte_less (const struct hash_elem *a, const struct hash_elem *b,
                        void *aux);
+static unsigned file_hash (const struct hash_elem *p, void *aux);
+static bool file_less (const struct hash_elem *a, const struct hash_elem *b,
+                       void *aux);
 static void spte_destroy (struct hash_elem *e, void *aux);
+static void mape_destroy (struct hash_elem *e, void *aux);
 static bool install_page (void *upage, void *kpage, bool writable);
 
 spt_t *
@@ -83,6 +99,13 @@ spt_create (void)
 
   if (! hash_init (&spt->pages, spte_hash, spte_less, NULL))
     {
+      free (spt);
+      return NULL;
+    }
+
+  if (! hash_init (&spt->mapped_files, file_hash, file_less, NULL))
+    {
+      hash_destroy (&spt->pages, spte_destroy);
       free (spt);
       return NULL;
     }
@@ -106,10 +129,27 @@ spte_less (const struct hash_elem *a, const struct hash_elem *b,
   return m->vaddress < n->vaddress;
 }
 
+static unsigned
+file_hash (const struct hash_elem *p, void *aux UNUSED)
+{
+  const struct mape *q = hash_entry (p, struct mape, hash_elem);
+  return hash_bytes (&q->file, sizeof (q->file));
+}
+
+static bool
+file_less (const struct hash_elem *a, const struct hash_elem *b,
+           void *aux UNUSED)
+{
+  const struct mape *m = hash_entry (a, struct mape, hash_elem);
+  const struct mape *n = hash_entry (b, struct mape, hash_elem);
+  return m->file < n->file;
+}
+
 void
 spt_destroy (spt_t *spt)
 {
   hash_destroy (&spt->pages, spte_destroy);
+  hash_destroy (&spt->mapped_files, mape_destroy);
   free (spt);
 }
 
@@ -129,6 +169,13 @@ spte_destroy (struct hash_elem *e, void *aux UNUSED)
       process_unlock_filesys ();
     }
 
+  free (p);
+}
+
+static void
+mape_destroy (struct hash_elem *e, void *aux UNUSED)
+{
+  struct mape *p = hash_entry (e, struct mape, hash_elem);
   free (p);
 }
 
