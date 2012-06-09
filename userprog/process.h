@@ -43,8 +43,6 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-typedef int mapid_t;
-
 mapid_t process_mmap_file (int fd, void *addr);
 void process_munmap_file (mapid_t mapping);
 

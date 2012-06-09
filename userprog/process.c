@@ -614,7 +614,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   /* Map file into memory. If the last page is not filled, it will be
    * padded with zeros. */
-  if (! spt_map_file (file, ofs, upage, read_bytes, writable, false))
+  if (spt_map_file (file, ofs, upage, read_bytes, writable, false) < 0)
     {
       return false;
     }
@@ -797,28 +797,21 @@ process_mmap_file (int fd, void *addr)
   uint32_t len = file_length (f);
   lock_release (&filesys_lock);
 
-  if (! spt_map_file (f, 0, addr, len, true, true))
+  mapid_t id;
+  if ( (id = spt_map_file (f, 0, addr, len, true, true)) < 0)
     {
       process_close_file (new_fd);
       return -1;
     }
 
-  return new_fd;
+  return id;
 }
 
-/* Unmaps an mmapped file.
-   Actually it tries to unmap any file for which mapping is a valid fd,
-   but it will never find pages to unmap for a file which is no mapping. */
+/* Unmaps an mmapped file. */
 void
 process_munmap_file (mapid_t mapping)
 {
-  struct file *f = process_get_file (mapping);
-  if (f == NULL)
-    {
-      return;
-    }
-
-  spt_unmap_file (f);
+  spt_unmap_file (mapping);
 }
 
 /* Open the file with the given name; returns

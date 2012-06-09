@@ -8,6 +8,8 @@
 #include "filesys/off_t.h"
 #include "lib/kernel/hash.h"
 
+typedef int mapid_t;
+
 struct __spt_t
 {
   /** The table holding mappings for each address. */
@@ -18,6 +20,11 @@ struct __spt_t
    * allowing for efficient unmapping.
    */
   struct hash mapped_files;
+
+  /**
+   * The first free map id.
+   */
+  mapid_t mapid_free;
 };
 
 /**
@@ -54,16 +61,15 @@ void *spt_load (spt_t *spt, void *vaddress);
  * If writable is true, the process can write to the area.
  * If a file is specified, the area will be backed by it.
  * If mapping an actual file fails, all pages previously mapped to
- * this file will be removed, however, if no file is specified and
- * the mapping fails at some point, all pages mapped up to it will
- * remain in the SPT.
+ * this file will be removed.
+ * Returns an identifier for this mapping, or a negative value on failure.
  */
-bool spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
-                   uint32_t read_bytes, bool writable, bool writeback);
+mapid_t spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
+                      uint32_t read_bytes, bool writable, bool writeback);
 
 /**
- * Removes all mappings for file. (file != NULL)
+ * Removes all mappings for file.
  */
-void spt_unmap_file (struct file *file);
+void spt_unmap_file (mapid_t id);
 
 #endif /* vm/vm.h */

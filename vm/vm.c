@@ -36,6 +36,11 @@ struct spte
   struct file *file;
 
   /**
+   * The associated map id.
+   */
+  mapid_t mapid;
+
+  /**
    * The starting offset within file. Ignored if file is NULL.
    * 0 <= offset < filesize. offset % PGSIZE == 0.
    */
@@ -74,15 +79,16 @@ struct spte
  */
 struct mape
 {
-  struct file *file;
+  mapid_t mapid;
   void *vaddress;
   struct hash_elem hash_elem;
 };
 
-static bool spt_create_file_entry (struct file *file, off_t ofs, void *upage,
-                                   uint32_t read_bytes, bool writable,
-                                   bool writeback);
+static bool spt_create_file_entry (struct file *file, mapid_t mapid, off_t ofs,
+                                   void *upage, uint32_t read_bytes,
+                                   bool writable, bool writeback);
 static struct spte *spt_find (spt_t *spt, void *vaddress);
+static struct mape *mape_find (struct hash *h, mapid_t id);
 static unsigned spte_hash (const struct hash_elem *p, void *aux);
 static bool spte_less (const struct hash_elem *a, const struct hash_elem *b,
                        void *aux);
@@ -113,6 +119,8 @@ spt_create (void)
       return NULL;
     }
 
+  spt->mapid_free = 0;
+
   return spt;
 }
 
@@ -136,7 +144,7 @@ static unsigned
 file_hash (const struct hash_elem *p, void *aux UNUSED)
 {
   const struct mape *q = hash_entry (p, struct mape, hash_elem);
-  return hash_bytes (&q->file, sizeof (q->file));
+  return hash_bytes (&q->mapid, sizeof (q->mapid));
 }
 
 static bool
@@ -145,7 +153,7 @@ file_less (const struct hash_elem *a, const struct hash_elem *b,
 {
   const struct mape *m = hash_entry (a, struct mape, hash_elem);
   const struct mape *n = hash_entry (b, struct mape, hash_elem);
-  return m->file < n->file;
+  return m->mapid < n->mapid;
 }
 
 void
@@ -195,14 +203,27 @@ spt_find (spt_t *spt, void *vaddress)
   return hash_entry (e, struct spte, hash_elem);
 }
 
+struct mape *
+mape_find (struct hash *h, mapid_t id)
+{
+  struct mape p;
+  struct hash_elem *e;
+
+  p.mapid = id;
+  e = hash_find (h, &p.hash_elem);
+  if (e == NULL)
+    return NULL;
+  return hash_entry (e, struct mape, hash_elem);
+}
+
 bool
 spt_create_entry (void *upage)
 {
-  return spt_create_file_entry (NULL, 0, upage, 0, true, false);
+  return spt_create_file_entry (NULL, -1, 0, upage, 0, true, false);
 }
 
 static bool
-spt_create_file_entry (struct file *file, off_t ofs, void *upage,
+spt_create_file_entry (struct file *file, mapid_t mapid, off_t ofs, void *upage,
                        uint32_t read_bytes, bool writable, bool writeback)
 {
   ASSERT (read_bytes <= PGSIZE);
@@ -223,6 +244,7 @@ spt_create_file_entry (struct file *file, off_t ofs, void *upage,
 
   spte->vaddress = upage;
   spte->file = file;
+  spte->mapid = mapid;
   spte->offset = (file == NULL ? 0 : ofs);
   spte->length = (file == NULL ? 0 : read_bytes);
   spte->writeback = (file == NULL ? false : writeback);
@@ -239,53 +261,79 @@ spt_create_file_entry (struct file *file, off_t ofs, void *upage,
 }
 
 void
-spt_unmap_file (struct file *file)
+spt_unmap_file (mapid_t id)
 {
-  ASSERT (file != NULL);
-
   struct thread *t = thread_current();
 
-  /* FIXME: this is _very_ inefficient */
-  struct hash_iterator i;
-  hash_first (&i, &t->spt->pages);
-  while (hash_next (&i))
-    {
-      struct hash_elem *e = hash_cur (&i);
-      struct spte *p = hash_entry (e, struct spte, hash_elem);
+  struct mape *mape = mape_find (&t->spt->mapped_files, id);
+  if (mape == NULL)
+    return;
 
-      if (p->file == file)
-        {
-          hash_delete (&t->spt->pages, e);
-          spte_destroy (e, NULL);
-          hash_first (&i, &t->spt->pages);
-        }
+  void *vaddr;
+  for (vaddr = mape->vaddress; ; vaddr += PGSIZE)
+    {
+      struct spte *p = spt_find (t->spt, vaddr);
+
+      /* If the page has a different map id, we're done. */
+      if (p == NULL || p->mapid != id)
+        break;
+
+      /* Otherwise, unmap this page. */
+      hash_delete (&t->spt->pages, &p->hash_elem);
+      spte_destroy (&p->hash_elem, NULL);
     }
+
+  if (id < t->spt->mapid_free)
+    t->spt->mapid_free = id;
+
+  hash_delete (&t->spt->mapped_files, &mape->hash_elem);
+  mape_destroy (&mape->hash_elem, NULL);
 }
 
-bool
+mapid_t
 spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, bool writable, bool writeback)
 {
+  ASSERT (file != NULL);
   ASSERT (ofs % PGSIZE == 0);
 
   /* Prevent mapping in kernel space. */
   if (! is_user_vaddr (upage))
-    {
-      return false;
-    }
+    return -1;
 
   /* Check this explicitly, so the mmap handler doesn't have to. */
   if (pg_ofs (upage) != 0)
+    return -1;
+
+  /* Obtain the next available map id, save our mapping, and update the next
+   * free id. */
+  struct mape *mape = malloc (sizeof (struct mape));
+  if (mape == NULL)
+    return -1;
+
+  struct thread *t = thread_current ();
+  mapid_t id = t->spt->mapid_free;
+
+  mape->mapid = id;
+  mape->vaddress = upage;
+
+  if (hash_insert (&t->spt->mapped_files, &mape->hash_elem) != NULL)
     {
-      return false;
+      free (mape);
+      return -1;
     }
 
+  do
+    t->spt->mapid_free++;
+  while (mape_find (&t->spt->mapped_files, t->spt->mapid_free) != NULL);
+
+  /* Map the file. */
   while (read_bytes > 0)
     {
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 
       /* Add mapping to supplemental page table. */
-      if (! spt_create_file_entry (file, ofs, upage, page_read_bytes,
+      if (! spt_create_file_entry (file, id, ofs, upage, page_read_bytes,
                                    writable, writeback))
         {
           /* If we tried to map a file previously, we have to unmap all
@@ -294,9 +342,9 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
              pages) anyway. */
           if (file != NULL)
             {
-              spt_unmap_file (file);
+              spt_unmap_file (id);
             }
-          return false;
+          return -1;
         }
 
       read_bytes -= page_read_bytes;
@@ -304,7 +352,7 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
       ofs += PGSIZE;
     }
 
-  return true;
+  return id;
 }
 
 void *
