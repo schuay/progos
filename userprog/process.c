@@ -866,7 +866,10 @@ process_reopen_file (int old_fd)
   if (fdt->fd_free >= fdt->fd_cap)
     return -1;
 
+  lock_acquire (&filesys_lock);
   struct file *new = file_reopen (old);
+  lock_release (&filesys_lock);
+
   if (new == NULL)
     {
       return -1;
