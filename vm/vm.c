@@ -299,6 +299,10 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (file != NULL);
   ASSERT (ofs % PGSIZE == 0);
 
+  /* Fail if size is 0 or an attempt to map to 0x0 is made. */
+  if (read_bytes == 0 || upage == 0)
+    return -1;
+
   /* Prevent mapping in kernel space. */
   if (! is_user_vaddr (upage))
     return -1;
