@@ -183,8 +183,7 @@ page_fault (struct intr_frame *f)
             thread_exit ();
 
           /* Map the requested page dynamically. */
-          if (!spt_create_entry (NULL, 0, pg_round_down (fault_addr), 0,
-                                 true, false))
+          if (!spt_create_entry (pg_round_down (fault_addr)))
             thread_exit ();
         }
 

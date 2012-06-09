@@ -79,6 +79,9 @@ struct mape
   struct hash_elem hash_elem;
 };
 
+static bool spt_create_file_entry (struct file *file, off_t ofs, void *upage,
+                                   uint32_t read_bytes, bool writable,
+                                   bool writeback);
 static struct spte *spt_find (spt_t *spt, void *vaddress);
 static unsigned spte_hash (const struct hash_elem *p, void *aux);
 static bool spte_less (const struct hash_elem *a, const struct hash_elem *b,
@@ -193,8 +196,14 @@ spt_find (spt_t *spt, void *vaddress)
 }
 
 bool
-spt_create_entry (struct file *file, off_t ofs, void *upage,
-                  uint32_t read_bytes, bool writable, bool writeback)
+spt_create_entry (void *upage)
+{
+  return spt_create_file_entry (NULL, 0, upage, 0, true, false);
+}
+
+static bool
+spt_create_file_entry (struct file *file, off_t ofs, void *upage,
+                       uint32_t read_bytes, bool writable, bool writeback)
 {
   ASSERT (read_bytes <= PGSIZE);
   ASSERT (pg_ofs (upage) == 0);
@@ -276,8 +285,8 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 
       /* Add mapping to supplemental page table. */
-      if (! spt_create_entry (file, ofs, upage, page_read_bytes,
-                              writable, writeback))
+      if (! spt_create_file_entry (file, ofs, upage, page_read_bytes,
+                                   writable, writeback))
         {
           /* If we tried to map a file previously, we have to unmap all
              of its previously mapped pages. If something else failed,

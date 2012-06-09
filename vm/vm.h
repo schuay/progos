@@ -38,10 +38,10 @@ void spt_destroy (spt_t *s);
 
 /**
  * Creates a new SPT entry and adds it to the SPT.
+ * The page is zeroed and write-enabled.
  * Returns false on error.
  */
-bool spt_create_entry (struct file *file, off_t ofs, void *upage,
-                       uint32_t read_bytes, bool writable, bool writeback);
+bool spt_create_entry (void *upage);
 
 /**
  * Loads and returns the page mapped to vaddress in spt.
