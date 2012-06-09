@@ -180,6 +180,8 @@ spte_destroy (struct hash_elem *e, void *aux UNUSED)
       process_unlock_filesys ();
     }
 
+  pagedir_clear_page (t->pagedir, p->vaddress);
+
   free (p);
 }
 
