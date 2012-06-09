@@ -226,9 +226,9 @@ mape_find (struct hash *h, mapid_t id)
 }
 
 bool
-spt_create_entry (void *upage)
+spt_create_entry (void *upage, bool writable)
 {
-  return spt_create_file_entry (NULL, -1, 0, upage, 0, true, false);
+  return spt_create_file_entry (NULL, -1, 0, upage, 0, writable, false);
 }
 
 static bool

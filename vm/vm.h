@@ -45,10 +45,11 @@ void spt_destroy (spt_t *s);
 
 /**
  * Creates a new SPT entry and adds it to the SPT.
- * The page is zeroed and write-enabled.
+ * The page is zeroed.
+ * If writable is true, the process can write to the area.
  * Returns false on error.
  */
-bool spt_create_entry (void *upage);
+bool spt_create_entry (void *upage, bool writable);
 
 /**
  * Loads and returns the page mapped to vaddress in spt.

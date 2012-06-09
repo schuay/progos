@@ -625,7 +625,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   while (zero_bytes > 0)
     {
-      if (! spt_create_entry (upage))
+      if (! spt_create_entry (upage, writable))
         {
           return false;
         }
@@ -662,7 +662,7 @@ setup_stack (struct start_aux_data *aux, void **esp)
   char **kpage_end;
 
   /* Map the the first page of the stack, and load it immediately. */
-  if (!spt_create_entry ( (void *) STACK_PAGE_START))
+  if (!spt_create_entry ( (void *) STACK_PAGE_START, true))
     return false;
 
   kpage = spt_load (thread_current ()->spt, (void *) STACK_PAGE_START);
