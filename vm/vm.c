@@ -79,11 +79,11 @@ spt_create (void)
 {
   spt_t *spt = malloc (sizeof (spt_t));
   if (spt == NULL)
-    {
-      return NULL;
-    }
+    return NULL;
+
   if (! hash_init (&spt->pages, spt_hash, spt_less, NULL))
     {
+      free (spt);
       return NULL;
     }
 
@@ -110,6 +110,7 @@ void
 spt_destroy (spt_t *spt)
 {
   hash_destroy (&spt->pages, spte_destroy);
+  free (spt);
 }
 
 static void
