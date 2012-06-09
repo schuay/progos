@@ -269,79 +269,11 @@ spt_create_file_entry (struct file *file, mapid_t mapid, off_t ofs, void *upage,
   return true;
 }
 
-void
-spt_unmap_file (mapid_t id)
-{
-  struct thread *t = thread_current();
-
-  struct mape *mape = mape_find (&t->spt->mapped_files, id);
-  if (mape == NULL)
-    return;
-
-  void *vaddr;
-  for (vaddr = mape->vaddress; ; vaddr += PGSIZE)
-    {
-      struct spte *p = spt_find (t->spt, vaddr);
-
-      /* If the page has a different map id, we're done. */
-      if (p == NULL || p->mapid != id)
-        break;
-
-      /* Otherwise, unmap this page. */
-      hash_delete (&t->spt->pages, &p->hash_elem);
-      spte_destroy (&p->hash_elem, NULL);
-    }
-
-  if (id < t->spt->mapid_free)
-    t->spt->mapid_free = id;
-
-  hash_delete (&t->spt->mapped_files, &mape->hash_elem);
-  mape_destroy (&mape->hash_elem, NULL);
-}
-
 bool
 spt_map_segment (struct file *file, off_t ofs, void *upage, uint32_t read_bytes,
                  bool writable)
 {
   return spt_map (file, -1, ofs, upage, read_bytes, writable, false);
-}
-
-static bool
-spt_map (struct file *file, mapid_t mapid, off_t ofs, void *upage,
-         uint32_t read_bytes, bool writable, bool writeback)
-{
-  ASSERT (ofs % PGSIZE == 0);
-
-  /* Fail if size is 0 or an attempt to map to 0x0 is made. */
-  if (read_bytes == 0 || upage == 0)
-    return false;
-
-  /* Prevent mapping in kernel space. */
-  if (! is_user_vaddr (upage))
-    return false;
-
-  /* Check this explicitly, so the mmap handler doesn't have to. */
-  if (pg_ofs (upage) != 0)
-    return false;
-
-  /* Map the file. */
-  while (read_bytes > 0)
-    {
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-
-      /* Add mapping to supplemental page table. */
-      if (! spt_create_file_entry (file, mapid, ofs, upage, page_read_bytes,
-                                   writable, writeback))
-        {
-          return false;
-        }
-
-      read_bytes -= page_read_bytes;
-      upage += PGSIZE;
-      ofs += PGSIZE;
-    }
-
-  return true;
 }
 
 mapid_t
@@ -381,6 +313,74 @@ spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
     }
 
   return id;
+}
+
+void
+spt_unmap_file (mapid_t id)
+{
+  struct thread *t = thread_current();
+
+  struct mape *mape = mape_find (&t->spt->mapped_files, id);
+  if (mape == NULL)
+    return;
+
+  void *vaddr;
+  for (vaddr = mape->vaddress; ; vaddr += PGSIZE)
+    {
+      struct spte *p = spt_find (t->spt, vaddr);
+
+      /* If the page has a different map id, we're done. */
+      if (p == NULL || p->mapid != id)
+        break;
+
+      /* Otherwise, unmap this page. */
+      hash_delete (&t->spt->pages, &p->hash_elem);
+      spte_destroy (&p->hash_elem, NULL);
+    }
+
+  if (id < t->spt->mapid_free)
+    t->spt->mapid_free = id;
+
+  hash_delete (&t->spt->mapped_files, &mape->hash_elem);
+  mape_destroy (&mape->hash_elem, NULL);
+}
+
+static bool
+spt_map (struct file *file, mapid_t mapid, off_t ofs, void *upage,
+         uint32_t read_bytes, bool writable, bool writeback)
+{
+  ASSERT (ofs % PGSIZE == 0);
+
+  /* Fail if size is 0 or an attempt to map to 0x0 is made. */
+  if (read_bytes == 0 || upage == 0)
+    return false;
+
+  /* Prevent mapping in kernel space. */
+  if (! is_user_vaddr (upage))
+    return false;
+
+  /* Check this explicitly, so the mmap handler doesn't have to. */
+  if (pg_ofs (upage) != 0)
+    return false;
+
+  /* Map the file. */
+  while (read_bytes > 0)
+    {
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+
+      /* Add mapping to supplemental page table. */
+      if (! spt_create_file_entry (file, mapid, ofs, upage, page_read_bytes,
+                                   writable, writeback))
+        {
+          return false;
+        }
+
+      read_bytes -= page_read_bytes;
+      upage += PGSIZE;
+      ofs += PGSIZE;
+    }
+
+  return true;
 }
 
 void *

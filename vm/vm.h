@@ -60,6 +60,18 @@ void *spt_load (spt_t *spt, void *vaddress);
 /**
  * Maps a read_bytes long memory area starting at upage.
  * If writable is true, the process can write to the area.
+ * If a file is specified, the area will be backed by it.
+ * If the mapping fails, pages which could be mapped correctly are not
+ * unmapped. It is expected, that the process is killed if this function
+ * fails.
+ * Return true if the mapping was created successfully, false on otherwise.
+ */
+bool spt_map_segment (struct file *file, off_t ofs, void *upage,
+                      uint32_t read_bytes, bool writable);
+
+/**
+ * Maps a read_bytes long memory area starting at upage.
+ * If writable is true, the process can write to the area.
  * The area will be backed by the specified file.
  * If mapping the file fails, all pages previously mapped to
  * this file will be removed.
@@ -70,18 +82,6 @@ void *spt_load (spt_t *spt, void *vaddress);
  */
 mapid_t spt_map_file (struct file *file, off_t ofs, uint8_t *upage,
                       uint32_t read_bytes, bool writable, bool writeback);
-
-/**
- * Maps a read_bytes long memory area starting at upage.
- * If writable is true, the process can write to the area.
- * If a file is specified, the area will be backed by it.
- * If the mapping fails, pages which could be mapped correctly are not
- * unmapped. It is expected, that the process is killed if this function
- * fails.
- * Return true if the mapping was created successfully, false on otherwise.
- */
-bool spt_map_segment (struct file *file, off_t ofs, void *upage,
-                      uint32_t read_bytes, bool writable);
 
 /**
  * Removes all mappings for the given id and closes the backing file.
