@@ -793,7 +793,11 @@ process_mmap_file (int fd, void *addr)
       return -1;
     }
 
-  if (! spt_map_file (f, 0, addr, file_length (f), true, true))
+  lock_acquire (&filesys_lock);
+  uint32_t len = file_length (f);
+  lock_release (&filesys_lock);
+
+  if (! spt_map_file (f, 0, addr, len, true, true))
     {
       process_close_file (new_fd);
       return -1;
