@@ -8,11 +8,22 @@
 #include "filesys/off_t.h"
 #include "lib/kernel/hash.h"
 
+struct __spt_t
+{
+  /** The table holding mappings for each address. */
+  struct hash pages;
+
+  /**
+   * This hash table holds mapped files and associated pages per process,
+   * allowing for efficient unmapping.
+   */
+  struct hash mapped_files;
+};
+
 /**
  * Keep our SPT type opaque.
- * Right now, our implementation uses a hash table.
  */
-typedef struct hash spt_t;
+typedef struct __spt_t spt_t;
 
 /**
  * Creates and initializes an SPT.

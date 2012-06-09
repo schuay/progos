@@ -82,7 +82,7 @@ spt_create (void)
     {
       return NULL;
     }
-  if (! hash_init (spt, spt_hash, spt_less, NULL))
+  if (! hash_init (&spt->pages, spt_hash, spt_less, NULL))
     {
       return NULL;
     }
@@ -109,7 +109,7 @@ spt_less (const struct hash_elem *a, const struct hash_elem *b,
 void
 spt_destroy (spt_t *spt)
 {
-  hash_destroy (spt, spte_destroy);
+  hash_destroy (&spt->pages, spte_destroy);
 }
 
 static void
@@ -138,7 +138,7 @@ spt_find (spt_t *spt, void *vaddress)
   struct hash_elem *e;
 
   p.vaddress = vaddress;
-  e = hash_find (spt, &p.hash_elem);
+  e = hash_find (&spt->pages, &p.hash_elem);
   if (e == NULL)
     return NULL;
   return hash_entry (e, struct spte, hash_elem);
@@ -172,7 +172,7 @@ spt_create_entry (struct file *file, off_t ofs, void *upage,
   spte->writable = writable;
 
   /* The address is already mapped. */
-  if (hash_insert (t->spt, &spte->hash_elem) != NULL)
+  if (hash_insert (&t->spt->pages, &spte->hash_elem) != NULL)
     {
       free (spte);
       return false;
@@ -190,7 +190,7 @@ spt_unmap_file (struct file *file)
 
   /* FIXME: this is _very_ inefficient */
   struct hash_iterator i;
-  hash_first (&i, t->spt);
+  hash_first (&i, &t->spt->pages);
   while (hash_next (&i))
     {
       struct hash_elem *e = hash_cur (&i);
@@ -198,9 +198,9 @@ spt_unmap_file (struct file *file)
 
       if (p->file == file)
         {
-          hash_delete (t->spt, e);
+          hash_delete (&t->spt->pages, e);
           spte_destroy (e, NULL);
-          hash_first (&i, t->spt);
+          hash_first (&i, &t->spt->pages);
         }
     }
 }
