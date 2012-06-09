@@ -175,10 +175,17 @@ page_fault (struct intr_frame *f)
       struct thread *t = thread_current ();
 
       /* Validate stack access. */
-      if (fault_addr > PHYS_BASE - STACK_MAX_SIZE &&
-          fault_addr < sp - STACK_MAX_OFFSET)
+      if (fault_addr > PHYS_BASE - STACK_MAX_SIZE)
         {
-          thread_exit ();
+          /* Do not allow stack accesses more than STACK_MAX_OFFSET below
+             the current stack pointer. */
+          if (fault_addr < sp - STACK_MAX_OFFSET)
+            thread_exit ();
+
+          /* Map the requested page dynamically. */
+          if (!spt_create_entry (NULL, 0, pg_round_down (fault_addr), 0,
+                                 true, false))
+            thread_exit ();
         }
 
       if (spt_load (t->spt, pg_round_down (fault_addr)) == NULL)
