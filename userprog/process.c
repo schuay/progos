@@ -38,6 +38,7 @@ static thread_func start_process NO_RETURN;
 static bool load (struct start_aux_data *aux, void (**eip) (void), void **esp);
 static bool setup_stack (struct start_aux_data *aux, void **esp);
 static bool init_fd_table (struct fd_table *table);
+static int process_add_file (struct file *f);
 
 /* Initialize the filesystem lock */
 void
@@ -825,29 +826,11 @@ process_munmap_file (mapid_t mapping)
 int
 process_open_file (const char *fname)
 {
-  struct fd_table *fdt = &process_current()->fd_table;
-  if (fdt->fd_free >= fdt->fd_cap)
-    return -1;
-
   lock_acquire (&filesys_lock);
   struct file *f = filesys_open (fname);
   lock_release (&filesys_lock);
 
-  if (f == NULL)
-    return -1;
-
-  int fd = fdt->fd_free++;
-  fdt->fds[fd] = f;
-
-  /* update index of free/max file descriptor index*/
-  if (fd > fdt->fd_max) fdt->fd_max = fd;
-  while (fdt->fds[fdt->fd_free] != NULL)
-    {
-      fdt->fd_free++;
-      if (fdt->fd_free >= fdt->fd_cap)
-        break;
-    }
-  return fd;
+  return process_add_file (f);
 }
 
 /* Creates a new file descriptor for the already opened file referenced
@@ -858,29 +841,37 @@ process_reopen_file (int old_fd)
 {
   struct file *old = process_get_file (old_fd);
   if (old == NULL)
-    {
-      return -1;
-    }
-
-  struct fd_table *fdt = &process_current()->fd_table;
-  if (fdt->fd_free >= fdt->fd_cap)
     return -1;
 
   lock_acquire (&filesys_lock);
-  struct file *new = file_reopen (old);
+  struct file *f = file_reopen (old);
   lock_release (&filesys_lock);
 
-  if (new == NULL)
-    {
-      return -1;
-    }
+  return process_add_file (f);
+}
 
-  /* TODO: merge this code with the one in process_open_file */
-  int new_fd = fdt->fd_free++;
-  fdt->fds[new_fd] = new;
+/**
+ * Adds file to the file descriptor table.
+ * On success, the new file descriptor (> 1) is returned.
+ * On error, file is closed and -1 is returned.
+ */
+static int
+process_add_file (struct file *f)
+{
+  int fd = -1;
+
+  if (f == NULL)
+    return -1;
+
+  struct fd_table *fdt = &process_current()->fd_table;
+  if (fdt->fd_free >= fdt->fd_cap)
+    goto out;
+
+  fd = fdt->fd_free++;
+  fdt->fds[fd] = f;
 
   /* update index of free/max file descriptor index*/
-  if (new_fd > fdt->fd_max) fdt->fd_max = new_fd;
+  if (fd > fdt->fd_max) fdt->fd_max = fd;
   while (fdt->fds[fdt->fd_free] != NULL)
     {
       fdt->fd_free++;
@@ -888,7 +879,14 @@ process_reopen_file (int old_fd)
         break;
     }
 
-  return new_fd;
+out:
+  if (fd == -1)
+    {
+      lock_acquire (&filesys_lock);
+      file_close (f);
+      lock_release (&filesys_lock);
+    }
+  return fd;
 }
 
 /* Get the file associated with the given file
