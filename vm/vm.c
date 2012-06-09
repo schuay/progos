@@ -68,9 +68,9 @@ struct spte
 };
 
 static struct spte *spt_find (spt_t *spt, void *vaddress);
-static unsigned spt_hash (const struct hash_elem *p, void *aux);
-static bool spt_less (const struct hash_elem *a, const struct hash_elem *b,
-                      void *aux);
+static unsigned spte_hash (const struct hash_elem *p, void *aux);
+static bool spte_less (const struct hash_elem *a, const struct hash_elem *b,
+                       void *aux);
 static void spte_destroy (struct hash_elem *e, void *aux);
 static bool install_page (void *upage, void *kpage, bool writable);
 
@@ -81,7 +81,7 @@ spt_create (void)
   if (spt == NULL)
     return NULL;
 
-  if (! hash_init (&spt->pages, spt_hash, spt_less, NULL))
+  if (! hash_init (&spt->pages, spte_hash, spte_less, NULL))
     {
       free (spt);
       return NULL;
@@ -91,15 +91,15 @@ spt_create (void)
 }
 
 static unsigned
-spt_hash (const struct hash_elem *p, void *aux UNUSED)
+spte_hash (const struct hash_elem *p, void *aux UNUSED)
 {
   const struct spte *q = hash_entry (p, struct spte, hash_elem);
   return hash_bytes (&q->vaddress, sizeof (q->vaddress));
 }
 
 static bool
-spt_less (const struct hash_elem *a, const struct hash_elem *b,
-          void *aux UNUSED)
+spte_less (const struct hash_elem *a, const struct hash_elem *b,
+           void *aux UNUSED)
 {
   const struct spte *m = hash_entry (a, struct spte, hash_elem);
   const struct spte *n = hash_entry (b, struct spte, hash_elem);
