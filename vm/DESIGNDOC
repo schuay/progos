@@ -36,9 +36,16 @@ TBD
 >> determine the file and file offset corresponding to a virtual
 >> address?
 
-A physical frame of memory is only allocated to a page in the page_fault() handler, provided that the requested address is valid. The load_segment() function called from the load() function during the initialization of the process only writes the virtual addresses to the supplemental page table, from where they will be faulted to physical memory at runtime.
+A physical frame of memory is only allocated to a page in the page_fault()
+handler, provided that the requested address is valid. The load_segment()
+function called from the load() function during the initialization of the
+process only writes the virtual addresses to the supplemental page table, from
+where they will be faulted to physical memory at runtime.
 
-Both the file and the file offset corresponding to a virtual memory address is stored in the SPT entry of the page. The offset of a particular address can be calculated by adding the offset of the address from the start of the page to the offset of the page as a whole.
+Both the file and the file offset corresponding to a virtual memory address is
+stored in the SPT entry of the page. The offset of a particular address can be
+calculated by adding the offset of the address from the start of the page to
+the offset of the page as a whole.
 
 ---- SYNCHRONIZATION ----
 >> A3: How do you deal with or prevent page faults in file system
@@ -46,7 +53,10 @@ Both the file and the file offset corresponding to a virtual memory address is s
 
 File system routines: TBD
 
-The solution is deadlock free because the synchronization is done via one global filesystem lock. This way, only one process can access the file system at the same time, and this process does not attempt to aquire any other locks while holding the filesystem lock.
+The solution is deadlock free because the synchronization is done via one
+global filesystem lock. This way, only one process can access the file system
+at the same time, and this process does not attempt to aquire any other locks
+while holding the filesystem lock.
 
 
 			    STACK GROWTH
@@ -64,14 +74,22 @@ TBD
 >> B2: Describe how you integrated the (potentially growing) stack segment
 >> into your page table management implementation.
 
-The setup_stack() function creates and immediately loads one stack page at STACK_PAGE_START. After that, additional stack pages are created and loaded by the page_fault() handler as needed. The stack is also prevented from growing below PHYS_BASE - STACK_MAX_SIZE, to eliminate the possibility of the stack segment overwriting other segments.
+The setup_stack() function creates and immediately loads one stack page at
+STACK_PAGE_START. After that, additional stack pages are created and loaded by
+the page_fault() handler as needed. The stack is also prevented from growing
+below PHYS_BASE - STACK_MAX_SIZE, to eliminate the possibility of the stack
+segment overwriting other segments.
 
 ---- ALGORITHMS ----
 >> B3: Explain how you detect a page fault which should trigger a
 >> stack growth. What asssumptions are needed for your implementation
 >> to work?
 
-If a page fault is detected at between the current stackpointer and the current stackpointer minus STACK_MAX_OFFSET, then a stack growth is assumed. This implementation assumes that there will be no valid stack access below STACK_MAX_OFFSET of the current stackpointer, because that would be considered an error.
+If a page fault is detected at between the current stackpointer and the current
+stackpointer minus STACK_MAX_OFFSET, then a stack growth is assumed. This
+implementation assumes that there will be no valid stack access below
+STACK_MAX_OFFSET of the current stackpointer, because that would be considered
+an error.
 
 			 MEMORY MAPPED FILES
 			 ===================
@@ -89,12 +107,18 @@ TBD
 >> C2: Describe how memory mapped files integrate into your virtual
 >> memory subsystem.
 
-In this implementation, the mmap-syscall reads the desired address for the mapping from userspace. The content of the file is then stored in a series of pages based on this initial address. The parameters needed to describe memory mapped files are integrated in the SPT entry, and set to NULL for all pages that are not part of a memory mapped file.
+In this implementation, the mmap-syscall reads the desired address for the
+mapping from userspace. The content of the file is then stored in a series of
+pages based on this initial address. The parameters needed to describe memory
+mapped files are integrated in the SPT entry, and set to NULL for all pages
+that are not part of a memory mapped file.
 
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 
-The SPT in our case is implemented as a hashmap. If the hash of a page about to be used for mapping a file already exists in our hashmap, we know that a collision has occured and can retern the appropriate error code.
+The SPT in our case is implemented as a hashmap. If the hash of a page about to
+be used for mapping a file already exists in our hashmap, we know that a
+collision has occured and can retern the appropriate error code.
 
 ---- RATIONALE ----
 
