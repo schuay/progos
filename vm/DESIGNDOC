@@ -29,7 +29,122 @@ Mino Sharkhawy <mino.sharkhawy@student.tuwien.ac.at>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TBD
+struct thread
+{
++  spt_t *spt;
++  void *esp;
+}
+
+The thread struct now includes a supplemental page table to track information
+about mapped pages such as the corresponding file, read/write and writeback
+flags, and similar. The userspace stack pointer is saved in the added esp
+member on syscall execution to allow for proper stack access validation.
+
++/**
++ * An entry of the supplemental page table (SPT).
++ *
++ * Exactly one SPT exists per process. It stores all memory areas which contain
++ * user-accessible data, namely the stack, the executable loadable segments,
++ * and memory-mapped files. There is no dynamic memory allocation on the heap.
++ */
++struct spte
++{
++  /**
++   * The user virtual address this page is mapped to.
++   */
++  void *vaddress;
++
++  /**
++   * The associated file. Note that the SPT is used to close open files
++   * on process termination, so memory-mapped files (which must be reopened
++   * using file_reopen) must not be used in any other location.
++   *
++   * Can be NULL if the page has no associated file (i.e., the stack).
++   */
++  struct file *file;
++
++  /**
++   * The associated map id.
++   */
++  mapid_t mapid;
++
++  /**
++   * The starting offset within file. Ignored if file is NULL.
++   * 0 <= offset < filesize. offset % PGSIZE == 0.
++   */
++  off_t offset;
++
++  /**
++   * The length of the desired mapping. This is usually equal to PGSIZE, unless
++   * we are at EOF. The rest of the page is zeroed. Ignored if file is NULL.
++   * 0 <= length < PGSIZE. offset + length < filesize.
++   */
++  uint32_t length;
++
++  /**
++   * If writable is true, the page is marked read/write. Otherwise, it is
++   * read-only.
++   */
++  bool writable;
++
++  /**
++   * If writeback is true, the page is written back to the file when
++   * the page is unmapped (which could occur either by exiting or killing
++   * the process or by calling munmap). Ignored if file is NULL.
++   */
++  bool writeback;
++
++  /**
++   * The hash table element.
++   */
++  struct hash_elem hash_elem;
++};
++
++/**
++ * Associates a mapped file with its first mapped virtual address.
++ * File mappings are always contiguous, which we can exploit for efficient
++ * unmapping.
++ */
++struct mape
++{
++  struct file *file;
++  mapid_t mapid;
++  void *vaddress;
++  struct hash_elem hash_elem;
++};
+
+
++typedef int mapid_t;
+
+The mapid_t type represents a memory-mapped file to the user (and the kernel
+outside of vm.c).
+
++
++struct __spt_t
++{
++  /** The table holding mappings for each address. */
++  struct hash pages;
++
++  /**
++   * This hash table holds mapped files and associated pages per process,
++   * allowing for efficient unmapping.
++   */
++  struct hash mapped_files;
++
++  /**
++   * The first free map id.
++   */
++  mapid_t mapid_free;
++};
++
++/**
++ * Keep our SPT type opaque.
++ */
++typedef struct __spt_t spt_t;
+
+By hiding the our used type, we can change the implementation without
+complications (which already occurred once during development).
+
 
 ---- IMPLEMENTATION ----
 >> A2: Describe how you implemented lazy page loading. How do you
@@ -51,12 +166,11 @@ the offset of the page as a whole.
 >> A3: How do you deal with or prevent page faults in file system
 >> routines. Argue why your solution is deadlock free.
 
-File system routines: TBD
-
-The solution is deadlock free because the synchronization is done via one
-global filesystem lock. This way, only one process can access the file system
-at the same time, and this process does not attempt to aquire any other locks
-while holding the filesystem lock.
+Page faults are allowed during all system calls. During a page fault, only
+spt_load() uses file system functions. Deadlocks are avoided by only attempting
+to acquire the file system lock in spt_load() if it is not already owned by the
+current process. The process does not attempt to aquire any other locks while
+holding the filesystem lock.
 
 
 			    STACK GROWTH
@@ -68,7 +182,7 @@ while holding the filesystem lock.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TBD
+TODO
 
 ---- IMPLEMENTATION ----
 >> B2: Describe how you integrated the (potentially growing) stack segment
@@ -80,16 +194,25 @@ the page_fault() handler as needed. The stack is also prevented from growing
 below PHYS_BASE - STACK_MAX_SIZE, to eliminate the possibility of the stack
 segment overwriting other segments.
 
+TODO: the above is not entirely true, the stack can grow below said address.
+Either fix the implementation or remove that statement.
+
 ---- ALGORITHMS ----
 >> B3: Explain how you detect a page fault which should trigger a
 >> stack growth. What asssumptions are needed for your implementation
 >> to work?
 
 If a page fault is detected at between the current stackpointer and the current
-stackpointer minus STACK_MAX_OFFSET, then a stack growth is assumed. This
-implementation assumes that there will be no valid stack access below
-STACK_MAX_OFFSET of the current stackpointer, because that would be considered
-an error.
+stackpointer minus STACK_MAX_OFFSET, then a stack growth is assumed. We assume
+that no valid stack access can be made more than STACK_MAX_OFFSET below the
+current stack pointer. Also, it is assumed that the stack pointer is never set
+to an address below the stack - this kind of exploit is not handled by our
+code. Furthermore, we do not prevent mapping files into potential (yet
+unmapped) stack areas. This implementation assumes that there will be no valid
+stack access below STACK_MAX_OFFSET of the current stackpointer, because that
+would be considered an error.
+
+TODO: same here. More assumptions?
 
 			 MEMORY MAPPED FILES
 			 ===================
@@ -100,7 +223,7 @@ an error.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TBD
+TODO
 
 ---- ALGORITHMS ----
 
@@ -116,9 +239,10 @@ that are not part of a memory mapped file.
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 
-The SPT in our case is implemented as a hashmap. If the hash of a page about to
+In our case, the SPT is implemented as a hashmap. If the hash of a page about to
 be used for mapping a file already exists in our hashmap, we know that a
-collision has occured and can retern the appropriate error code.
+collision has occurred. Any mapped pages are unmapped and an appropriate error
+code is returned.
 
 ---- RATIONALE ----
 
@@ -129,7 +253,10 @@ collision has occured and can retern the appropriate error code.
 >> implementation either does or does not share much of the code for
 >> the two situations.
 
-TBD
+The assignment does not include swapping. Thus, the implementation of
+memory-mapped files and the executable mapping is almost identical. The only
+differences are that memory-mapped files do some additional bookkeeping to allow
+for efficient unmapping and that the executable file is not owned by vm.c.
 
 			   SURVEY QUESTIONS
 			   ================
@@ -143,12 +270,20 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
+Like both other assignments, the work was interesting, but we wouldn't have
+minded a little more challenge.
+
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
+
+Yes, definitely. 
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
+
+It took some reflection to figure out that the reason for saving the stack
+pointer during syscalls was for stack access validation.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
