@@ -190,12 +190,14 @@ TODO
 
 The setup_stack() function creates and immediately loads one stack page at
 STACK_PAGE_START. After that, additional stack pages are created and loaded by
-the page_fault() handler as needed. The stack is also prevented from growing
-below PHYS_BASE - STACK_MAX_SIZE, to eliminate the possibility of the stack
-segment overwriting other segments.
+the page_fault() handler as needed.
 
-TODO: the above is not entirely true, the stack can grow below said address.
-Either fix the implementation or remove that statement.
+Since there are no signals in Pintos, every change of the user stack is
+controlled by the running program. Therefore we make no effort to prevent a user
+program from mapping files into the stack area or the stack from growing into
+an mmapped area. However, we only map STACK_MAX_SIZE pages for the stack. Thus,
+if a page fault below PHYS_BASE - STACK_MAX_SIZE occurs and the area is not
+mapped by something else (i.e. a file) the program is terminated.
 
 ---- ALGORITHMS ----
 >> B3: Explain how you detect a page fault which should trigger a
