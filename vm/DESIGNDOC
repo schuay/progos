@@ -278,7 +278,7 @@ minded a little more challenge.
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-Yes, definitely. 
+Yes, definitely. Pintos seems like the perfect project for this course.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
@@ -289,5 +289,11 @@ pointer during syscalls was for stack access validation.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
+
+It would be nice if pintos could be debugged on a 64 bit machine with qemu.
+Also, maybe it'd make sense to run the entire source tree through astyle with
+specified flags (such as --style=gnu --suffix=none --indent=spaces=2 --pad-oper
+--pad-paren-out --unpad-paren --align-pointer=name --align-reference=name
+--convert-tabs) to make following the style guidelines simpler.
 
 >> Any other comments?
