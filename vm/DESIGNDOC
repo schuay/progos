@@ -32,13 +32,11 @@ Mino Sharkhawy <mino.sharkhawy@student.tuwien.ac.at>
 struct thread
 {
 +  spt_t *spt;
-+  void *esp;
 }
 
 The thread struct now includes a supplemental page table to track information
 about mapped pages such as the corresponding file, read/write and writeback
-flags, and similar. The userspace stack pointer is saved in the added esp
-member on syscall execution to allow for proper stack access validation.
+flags, and similar.
 
 +/**
 + * An entry of the supplemental page table (SPT).
@@ -182,7 +180,13 @@ holding the filesystem lock.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TODO
+struct thread
+{
++  void *esp;
+}
+
+The userspace stack pointer is saved in the added esp
+member on syscall execution to allow for proper stack access validation.
 
 ---- IMPLEMENTATION ----
 >> B2: Describe how you integrated the (potentially growing) stack segment
@@ -214,8 +218,6 @@ unmapped) stack areas. This implementation assumes that there will be no valid
 stack access below STACK_MAX_OFFSET of the current stackpointer, because that
 would be considered an error.
 
-TODO: same here. More assumptions?
-
 			 MEMORY MAPPED FILES
 			 ===================
 
@@ -225,7 +227,8 @@ TODO: same here. More assumptions?
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-TODO
+Memory mapped files are closely integrated with page table management, see PAGE
+TABLE MANAGEMENT data structures above.
 
 ---- ALGORITHMS ----
 
